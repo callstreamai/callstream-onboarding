@@ -34,15 +34,10 @@ export default function ReviewQueuePage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Spinner size={28} />
-        </div>
+        <div className="flex justify-center py-16"><Spinner size={28} /></div>
       ) : jobs.length === 0 ? (
         <div className="cs-card p-12 text-center">
-          <ClipboardCheck
-            size={40}
-            className="mx-auto text-cs-text-muted mb-3"
-          />
+          <ClipboardCheck size={40} className="mx-auto text-cs-text-muted mb-3" />
           <p className="text-cs-text-secondary">No properties pending review</p>
           <Link href="/onboarding" className="cs-btn-primary text-sm mt-4 inline-flex">
             Start New Onboarding
@@ -51,30 +46,16 @@ export default function ReviewQueuePage() {
       ) : (
         <div className="space-y-2">
           {jobs.map((job) => (
-            <Link
-              key={job.id}
-              href={`/onboarding/${job.id}/review`}
-              className="cs-card-hover flex items-center justify-between p-4 group"
-            >
+            <Link key={job.id} href={`/onboarding/${job.id}/review`} className="cs-card-hover flex items-center justify-between p-4 group">
               <div>
-                <p className="text-sm text-cs-text-primary font-medium">
-                  {job.property_url}
-                </p>
+                <p className="text-sm text-cs-text-primary font-medium">{job.property_url}</p>
                 <p className="text-xs text-cs-text-muted mt-0.5">
-                  {job.pages_crawled} pages · {job.files_processed} files ·{" "}
-                  {Math.round((job.extraction_confidence || 0) * 100)}% confidence
+                  {job.pages_crawled} pages · {job.files_processed} files · {Math.round((job.extraction_confidence || 0) * 100)}% confidence
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span
-                  className={`cs-label ${statusColors[job.status] || "text-cs-text-muted"}`}
-                >
-                  {job.status.replace(/_/g, " ")}
-                </span>
-                <ArrowRight
-                  size={16}
-                  className="text-cs-text-muted group-hover:text-cs-text-primary transition-colors"
-                />
+                <span className={`cs-label ${statusColors[job.status] || "text-cs-text-muted"}`}>{job.status.replace(/_/g, " ")}</span>
+                <ArrowRight size={16} className="text-cs-text-muted group-hover:text-cs-text-primary transition-colors" />
               </div>
             </Link>
           ))}

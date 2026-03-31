@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const channels = JSON.parse(
       (formData.get("channels") as string) || '["voice","sms","webchat","whatsapp"]'
     );
+    const userId = formData.get("userId") as string | null;
     const files = formData.getAll("files") as File[];
 
     // Create onboarding job
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
         consent_given: true,
         consent_at: new Date().toISOString(),
         files_uploaded: files.length,
+        created_by: userId || null,
       })
       .select()
       .single();
@@ -35,7 +37,6 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const storagePath = `${job.id}/${file.name}`;
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("onboarding-files")
         .upload(storagePath, buffer, {
@@ -48,10 +49,8 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Process file (extract text)
       const processed = await processFile(buffer, file.name, file.type);
 
-      // Store file record
       await supabase.from("uploaded_files").insert({
         job_id: job.id,
         file_name: file.name,
@@ -65,7 +64,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Update job
     await supabase
       .from("onboarding_jobs")
       .update({

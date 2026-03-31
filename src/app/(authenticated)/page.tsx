@@ -1,11 +1,19 @@
+"use client";
+
 import Link from "next/link";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { StatCard } from "@/components/ui/StatCard";
-import { FileInput, ClipboardCheck, Globe } from "lucide-react";
+import { FileInput, ClipboardCheck } from "lucide-react";
 
 export default function DashboardPage() {
+  const { profile, isAdmin } = useAuth();
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-semibold mb-1">Dashboard</h1>
+      <p className="text-sm text-cs-text-secondary mb-6">
+        Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}
+      </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard label="TOTAL PROPERTIES" value={0} />
@@ -28,9 +36,9 @@ export default function DashboardPage() {
             <FileInput size={16} />
             New Onboarding
           </Link>
-          <Link href="/review" className="cs-btn-secondary text-sm">
+          <Link href={isAdmin ? "/admin/submissions" : "/submissions"} className="cs-btn-secondary text-sm">
             <ClipboardCheck size={16} />
-            Review Queue
+            View Submissions
           </Link>
         </div>
       </div>

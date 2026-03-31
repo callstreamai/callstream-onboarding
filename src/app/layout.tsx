@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sidebar } from "@/components/ui/Sidebar";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,10 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-cs-bg text-cs-text-primary min-h-screen">
-        <Sidebar />
-        <main className="ml-56 min-h-screen">
-          <div className="p-8">{children}</div>
-        </main>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/lib/store";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { Check, X, Globe, FileText, Brain } from "lucide-react";
 
@@ -18,6 +19,7 @@ interface PhaseStatus {
 export function ProcessingStep() {
   const { propertyUrl, files, vertical, channels, jobId, setJobId, setStep } =
     useOnboardingStore();
+  const { user } = useAuth();
   const [currentPhase, setCurrentPhase] = useState<Phase>("uploading");
   const [phases, setPhases] = useState<PhaseStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,7 @@ export function ProcessingStep() {
       formData.append("propertyUrl", propertyUrl);
       if (vertical) formData.append("vertical", vertical);
       formData.append("channels", JSON.stringify(channels));
+      if (user?.id) formData.append("userId", user.id);
       for (const file of files) {
         formData.append("files", file);
       }
@@ -135,7 +138,6 @@ export function ProcessingStep() {
         },
       ]);
 
-      // Auto-navigate to status after a short delay
       setTimeout(() => {
         router.push(`/onboarding/${newJobId}/review`);
       }, 2000);
@@ -154,12 +156,6 @@ export function ProcessingStep() {
     }
   }
 
-  const phaseIcons: Record<string, React.ReactNode> = {
-    uploading: <FileText size={16} />,
-    crawling: <Globe size={16} />,
-    extracting: <Brain size={16} />,
-  };
-
   return (
     <div className="max-w-xl">
       <div className="mb-6">
@@ -176,12 +172,8 @@ export function ProcessingStep() {
           <div key={i} className="cs-card flex items-center gap-3 p-4">
             <div className="flex-shrink-0">{p.icon}</div>
             <div className="flex-1">
-              <p className="text-sm text-cs-text-primary font-medium">
-                {p.label}
-              </p>
-              <p className="text-xs text-cs-text-secondary mt-0.5">
-                {p.detail}
-              </p>
+              <p className="text-sm text-cs-text-primary font-medium">{p.label}</p>
+              <p className="text-xs text-cs-text-secondary mt-0.5">{p.detail}</p>
             </div>
           </div>
         ))}
