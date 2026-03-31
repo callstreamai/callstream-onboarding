@@ -5,7 +5,6 @@ import { cookies } from "next/headers";
 
 export async function GET(req: NextRequest) {
   try {
-    // Get current user
     const cookieStore = cookies();
     const userClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +22,6 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await userClient.auth.getUser();
     const supabase = createServiceClient();
 
-    // Check if admin
     let isAdmin = false;
     if (user) {
       const { data: profile } = await supabase
@@ -35,14 +33,19 @@ export async function GET(req: NextRequest) {
     }
 
     const statusFilter = req.nextUrl.searchParams.get("status");
+    const showAll = req.nextUrl.searchParams.get("all") === "true";
 
     let query = supabase
       .from("onboarding_jobs")
       .select("*")
       .order("created_at", { ascending: false });
 
-    // Clients only see their own jobs
-    if (!isAdmin && user) {
+    // "My Submissions" always filters by user. 
+    // "All Submissions" (admin + ?all=true) shows everything.
+    if (showAll && isAdmin) {
+      // Admin viewing all — no filter
+    } else if (user) {
+      // Everyone else (including admins on "My Submissions") sees only their own
       query = query.eq("created_by", user.id);
     }
 
