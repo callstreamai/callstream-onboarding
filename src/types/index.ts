@@ -159,6 +159,7 @@ export interface SourceSnippet {
 export interface OnboardingJob {
   id: string;
   property_url: string;
+  property_name: string | null;
   vertical: Vertical | null;
   status: JobStatus;
   consent_given: boolean;

@@ -17,7 +17,7 @@ interface PhaseStatus {
 }
 
 export function ProcessingStep() {
-  const { propertyUrl, files, vertical, channels, jobId, setJobId, setStep } =
+  const { propertyName, propertyUrl, files, vertical, channels, jobId, setJobId, setStep } =
     useOnboardingStore();
   const { user } = useAuth();
   const [currentPhase, setCurrentPhase] = useState<Phase>("uploading");
@@ -48,6 +48,7 @@ export function ProcessingStep() {
 
       const formData = new FormData();
       formData.append("propertyUrl", propertyUrl);
+      formData.append("propertyName", propertyName);
       if (vertical) formData.append("vertical", vertical);
       formData.append("channels", JSON.stringify(channels));
       if (user?.id) formData.append("userId", user.id);

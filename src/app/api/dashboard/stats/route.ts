@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
     const workspaces = allJobs.map(j => ({
       id: j.id,
       property_url: j.property_url,
+      property_name: j.property_name || null,
       status: j.status,
       pages_crawled: j.pages_crawled || 0,
       files_processed: j.files_processed || 0,

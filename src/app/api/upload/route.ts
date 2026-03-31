@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
 
     const propertyUrl = formData.get("propertyUrl") as string;
+    const propertyName = formData.get("propertyName") as string | null;
     const vertical = formData.get("vertical") as string | null;
     const channels = JSON.parse(
       (formData.get("channels") as string) || '["voice","sms","webchat","whatsapp"]'
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
       .from("onboarding_jobs")
       .insert({
         property_url: propertyUrl,
+        property_name: propertyName || null,
         vertical,
         status: "consent_given",
         consent_given: true,

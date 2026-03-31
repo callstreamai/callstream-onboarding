@@ -7,7 +7,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   FileInput, ClipboardCheck, FileText, FolderOpen, ArrowRight,
-  Globe, Building2,
+  Globe,
 } from "lucide-react";
 
 interface Stats {
@@ -31,6 +31,7 @@ interface Stats {
   workspaces: {
     id: string;
     property_url: string;
+    property_name: string | null;
     status: string;
     pages_crawled: number;
     files_processed: number;
@@ -59,6 +60,11 @@ export default function DashboardPage() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   }
 
+  function displayName(w: { property_name: string | null; property_url: string }) {
+    if (w.property_name) return w.property_name;
+    try { return new URL(w.property_url).hostname; } catch { return w.property_url; }
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-1">Dashboard</h1>
@@ -84,7 +90,7 @@ export default function DashboardPage() {
             <StatCard label="AVG CONFIDENCE" value={(stats?.avgConfidence ?? 0) + "%"} color="cyan" />
           </div>
 
-          {/* My Workspaces — primary action area */}
+          {/* My Workspaces */}
           {stats?.workspaces && stats.workspaces.length > 0 && (
             <div className="cs-card p-5 mb-6">
               <div className="flex items-center justify-between mb-3">
@@ -92,29 +98,26 @@ export default function DashboardPage() {
                 <Link href="/submissions" className="text-xs text-cs-accent-blue hover:underline">View all</Link>
               </div>
               <div className="space-y-2">
-                {stats.workspaces.slice(0, 5).map((w) => {
-                  const domain = (() => {
-                    try { return new URL(w.property_url).hostname; } catch { return w.property_url; }
-                  })();
-                  return (
-                    <Link
-                      key={w.id}
-                      href={"/onboarding/" + w.id + "/workspace"}
-                      className="flex items-center gap-3 py-3 px-4 bg-cs-surface border border-cs-border rounded-md hover:border-cs-accent-blue/50 transition group"
-                    >
-                      <div className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center flex-shrink-0">
-                        <Globe size={16} className="text-cs-accent-blue" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-cs-text-primary font-medium truncate">{domain}</p>
-                        <p className="text-[10px] text-cs-text-muted">
-                          {w.pages_crawled} pages · {w.files_processed} files · {new Date(w.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition flex-shrink-0" />
-                    </Link>
-                  );
-                })}
+                {stats.workspaces.slice(0, 5).map((w) => (
+                  <Link
+                    key={w.id}
+                    href={"/onboarding/" + w.id + "/workspace"}
+                    className="flex items-center gap-3 py-3 px-4 bg-cs-surface border border-cs-border rounded-md hover:border-cs-accent-blue/50 transition group"
+                  >
+                    <div className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center flex-shrink-0">
+                      <Globe size={16} className="text-cs-accent-blue" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-cs-text-primary font-medium truncate">
+                        {displayName(w)}
+                      </p>
+                      <p className="text-[10px] text-cs-text-muted">
+                        {w.pages_crawled} pages · {w.files_processed} files · {new Date(w.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition flex-shrink-0" />
+                  </Link>
+                ))}
               </div>
             </div>
           )}

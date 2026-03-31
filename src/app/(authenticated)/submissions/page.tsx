@@ -56,7 +56,7 @@ export default function MySubmissionsPage() {
             <div key={job.id} className="cs-card-hover flex items-center justify-between p-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <p className="text-sm text-cs-text-primary font-medium">{job.property_url}</p>
+                  <p className="text-sm text-cs-text-primary font-medium">{job.property_name || (() => { try { return new URL(job.property_url).hostname; } catch { return job.property_url; } })()}</p>
                   <span className={statusBadge(job.status)}>
                     {job.status.replace(/_/g, " ")}
                   </span>

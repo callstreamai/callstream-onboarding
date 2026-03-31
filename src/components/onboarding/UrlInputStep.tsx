@@ -3,16 +3,20 @@
 import { useState } from "react";
 import { useOnboardingStore } from "@/lib/store";
 import { VERTICALS, type Vertical } from "@/types";
-import { Globe, ArrowRight, ArrowLeft } from "lucide-react";
+import { Globe, ArrowRight, ArrowLeft, Building2 } from "lucide-react";
 
 export function UrlInputStep() {
-  const { propertyUrl, setPropertyUrl, vertical, setVertical, setStep } =
-    useOnboardingStore();
+  const {
+    propertyName, setPropertyName,
+    propertyUrl, setPropertyUrl,
+    vertical, setVertical,
+    setStep,
+  } = useOnboardingStore();
   const [urlError, setUrlError] = useState("");
 
   const validateUrl = (url: string) => {
     try {
-      const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+      const parsed = new URL(url.startsWith("http") ? url : "https://" + url);
       if (!parsed.hostname.includes(".")) throw new Error();
       setUrlError("");
       return true;
@@ -23,9 +27,10 @@ export function UrlInputStep() {
   };
 
   const handleContinue = () => {
+    if (!propertyName.trim()) return;
     const url = propertyUrl.startsWith("http")
       ? propertyUrl
-      : `https://${propertyUrl}`;
+      : "https://" + propertyUrl;
     if (validateUrl(url)) {
       setPropertyUrl(url);
       setStep("file_upload");
@@ -40,18 +45,33 @@ export function UrlInputStep() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-cs-text-primary">
-            Property Website
+            Property Information
           </h2>
           <p className="text-sm text-cs-text-secondary">
-            Enter your property URL so we can extract information
+            Tell us about your property so we can set up your workspace
           </p>
         </div>
       </div>
 
-      {/* URL Input */}
       <div className="space-y-4">
+        {/* Property Name */}
         <div>
-          <label className="cs-label block mb-2">PROPERTY URL</label>
+          <label className="cs-label block mb-2">PROPERTY NAME</label>
+          <input
+            type="text"
+            value={propertyName}
+            onChange={(e) => setPropertyName(e.target.value)}
+            placeholder="The Soho Grand Hotel"
+            className="cs-input"
+          />
+          <p className="text-[10px] text-cs-text-muted mt-1">
+            The name of your property as you'd like it to appear
+          </p>
+        </div>
+
+        {/* URL Input */}
+        <div>
+          <label className="cs-label block mb-2">PROPERTY WEBSITE</label>
           <input
             type="url"
             value={propertyUrl}
@@ -60,11 +80,14 @@ export function UrlInputStep() {
               if (urlError) setUrlError("");
             }}
             placeholder="https://yourproperty.com"
-            className={`cs-input ${urlError ? "border-cs-accent-red" : ""}`}
+            className={"cs-input " + (urlError ? "border-cs-accent-red" : "")}
           />
           {urlError && (
             <p className="text-xs text-cs-accent-red mt-1">{urlError}</p>
           )}
+          <p className="text-[10px] text-cs-text-muted mt-1">
+            We will crawl the sitemap, internal pages, and priority content (up to 30 pages)
+          </p>
         </div>
 
         {/* Vertical selector */}
@@ -76,13 +99,12 @@ export function UrlInputStep() {
                 <button
                   key={key}
                   onClick={() => setVertical(key)}
-                  className={`
-                    p-2.5 rounded-md text-left text-xs transition-colors border
-                    ${vertical === key
+                  className={
+                    "p-2.5 rounded-md text-left text-xs transition-colors border " +
+                    (vertical === key
                       ? "bg-cs-card border-cs-accent-blue text-cs-text-primary"
-                      : "border-cs-border text-cs-text-secondary hover:border-cs-border-hover"
-                    }
-                  `}
+                      : "border-cs-border text-cs-text-secondary hover:border-cs-border-hover")
+                  }
                 >
                   <span className="mr-1.5">{meta.icon}</span>
                   {meta.label}
@@ -100,7 +122,7 @@ export function UrlInputStep() {
         </button>
         <button
           onClick={handleContinue}
-          disabled={!propertyUrl}
+          disabled={!propertyName.trim() || !propertyUrl}
           className="cs-btn-primary"
         >
           Continue
