@@ -20,7 +20,7 @@ export async function parseSitemap(baseUrl: string): Promise<SitemapUrl[]> {
     if (!res.ok) return [];
 
     const xml = await res.text();
-    const parsed = await parseStringPromise(xml, { explicitArray: false });
+    const parsed: any = await parseStringPromise(xml, { explicitArray: false });
 
     if (!parsed?.urlset?.url) return [];
 

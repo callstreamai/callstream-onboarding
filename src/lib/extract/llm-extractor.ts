@@ -44,7 +44,17 @@ export async function extractPropertyData(
   );
 
   // Step 2: Get confidence scores
-  const confidencePrompt = `Given this extracted data:\n${JSON.stringify(extractedData, null, 2)}\n\nAnd these source materials:\n${sources.map((s) => \`[\${s.type}] \${s.name}: \${s.content.slice(0, 2000)}\`).join("\n")}\n\n${CONFIDENCE_PROMPT}`;
+  const sourceSummaries = sources
+    .map((s) => "[" + s.type + "] " + s.name + ": " + s.content.slice(0, 2000))
+    .join("\n");
+
+  const confidencePrompt =
+    "Given this extracted data:\n" +
+    JSON.stringify(extractedData, null, 2) +
+    "\n\nAnd these source materials:\n" +
+    sourceSummaries +
+    "\n\n" +
+    CONFIDENCE_PROMPT;
 
   const confidenceResponse = await openai.chat.completions.create({
     model: "gpt-4o-mini",

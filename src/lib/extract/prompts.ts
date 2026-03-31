@@ -9,7 +9,7 @@ Communication channels: Voice AI, SMS/Text AI, Webchat AI, WhatsApp AI
 
 RULES:
 1. Extract ONLY information explicitly stated in the source material
-2. Do NOT hallucinate or infer data that isn't clearly present
+2. Do NOT hallucinate or infer data that is not clearly present
 3. If a field is not found, set it to null (for strings) or empty array (for arrays)
 4. For pricing, always note the period (nightly, monthly, per event, etc.)
 5. For amenities, list each one individually
@@ -27,8 +27,8 @@ export function buildExtractionPrompt(
   let prompt = "Extract structured property data from the following sources:\n\n";
 
   for (const source of sources) {
-    prompt += \`--- SOURCE (\${source.type}): \${source.name} ---\n\`;
-    prompt += source.content.slice(0, 15000); // Cap per source
+    prompt += "--- SOURCE (" + source.type + "): " + source.name + " ---\n";
+    prompt += source.content.slice(0, 15000);
     prompt += "\n\n";
   }
 
