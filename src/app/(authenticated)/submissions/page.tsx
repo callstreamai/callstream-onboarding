@@ -2,20 +2,42 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/components/providers/AuthProvider";
 import type { OnboardingJob } from "@/types";
 import { Spinner } from "@/components/ui/Spinner";
-import { FolderOpen, ArrowRight, Download, FileInput } from "lucide-react";
+import { FolderOpen, ArrowRight, Download, FileInput, Trash2 } from "lucide-react";
 
 export default function MySubmissionsPage() {
+  const { isAdmin } = useAuth();
   const [jobs, setJobs] = useState<OnboardingJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  function fetchJobs() {
     fetch("/api/jobs")
       .then((r) => r.json())
       .then((data) => setJobs(data.jobs || []))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  async function deleteJob(jobId: string, jobName: string) {
+    if (!confirm("Delete \"" + jobName + "\" and all its data? This cannot be undone.")) return;
+    setDeleting(jobId);
+    const res = await fetch("/api/jobs/" + jobId, { method: "DELETE" });
+    if (res.ok) {
+      setJobs(jobs.filter((j) => j.id !== jobId));
+    }
+    setDeleting(null);
+  }
+
+  function displayName(job: OnboardingJob) {
+    if (job.property_name) return job.property_name;
+    try { return new URL(job.property_url).hostname; } catch { return job.property_url; }
+  }
 
   function statusBadge(status: string) {
     const map: Record<string, { bg: string; text: string }> = {
@@ -27,7 +49,7 @@ export default function MySubmissionsPage() {
       review_in_progress: { bg: "bg-cs-accent-blue/10", text: "text-cs-accent-blue" },
     };
     const s = map[status] || { bg: "bg-cs-card", text: "text-cs-text-muted" };
-    return `cs-badge ${s.bg} ${s.text}`;
+    return "cs-badge " + s.bg + " " + s.text;
   }
 
   return (
@@ -56,14 +78,14 @@ export default function MySubmissionsPage() {
             <div key={job.id} className="cs-card-hover flex items-center justify-between p-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <p className="text-sm text-cs-text-primary font-medium">{job.property_name || (() => { try { return new URL(job.property_url).hostname; } catch { return job.property_url; } })()}</p>
+                  <p className="text-sm text-cs-text-primary font-medium">{displayName(job)}</p>
                   <span className={statusBadge(job.status)}>
                     {job.status.replace(/_/g, " ")}
                   </span>
                 </div>
                 <p className="text-xs text-cs-text-muted mt-1">
                   {job.pages_crawled} pages · {job.files_processed} files
-                  {job.extraction_confidence ? ` · ${Math.round(job.extraction_confidence * 100)}% confidence` : ""}
+                  {job.extraction_confidence ? " · " + Math.round(job.extraction_confidence * 100) + "% confidence" : ""}
                   {" · "}
                   {new Date(job.created_at).toLocaleDateString()}
                 </p>
@@ -71,7 +93,7 @@ export default function MySubmissionsPage() {
               <div className="flex items-center gap-2">
                 {job.status === "approved" && (
                   <a
-                    href={`/api/jobs/${job.id}/export`}
+                    href={"/api/jobs/" + job.id + "/export"}
                     className="cs-btn-secondary text-xs py-1.5"
                     download
                   >
@@ -80,16 +102,22 @@ export default function MySubmissionsPage() {
                   </a>
                 )}
                 <Link
-                  href={
-                    job.status === "approved" || job.status === "extraction_complete" || job.status.includes("review")
-                      ? `/onboarding/${job.id}/review`
-                      : `/onboarding/${job.id}/status`
-                  }
+                  href={"/onboarding/" + job.id + "/workspace"}
                   className="cs-btn-ghost text-xs py-1.5"
                 >
                   <ArrowRight size={14} />
                   View
                 </Link>
+                {isAdmin && (
+                  <button
+                    onClick={() => deleteJob(job.id, displayName(job))}
+                    disabled={deleting === job.id}
+                    className="text-cs-text-muted hover:text-cs-accent-red transition-colors p-1.5"
+                    title="Delete workspace"
+                  >
+                    {deleting === job.id ? <Spinner size={14} /> : <Trash2 size={14} />}
+                  </button>
+                )}
               </div>
             </div>
           ))}
