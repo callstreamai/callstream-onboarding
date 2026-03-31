@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: rgba(96, 165, 250, 0.3);
+    color: #ffffff;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0a0a0a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #333333;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+  }
+}
+
+@layer components {
+  .cs-card {
+    @apply bg-cs-card border border-cs-border rounded-lg;
+  }
+
+  .cs-card-hover {
+    @apply cs-card transition-colors hover:border-cs-border-hover;
+  }
+
+  .cs-label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-cs-text-label;
+  }
+
+  .cs-input {
+    @apply w-full bg-cs-surface border border-cs-border rounded-md px-3 py-2.5
+           text-sm text-cs-text-primary placeholder-cs-text-muted
+           focus:outline-none focus:border-cs-border-hover
+           transition-colors;
+  }
+
+  .cs-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
+           bg-white text-black text-sm font-medium rounded-md
+           hover:bg-gray-200 transition-colors disabled:opacity-40
+           disabled:cursor-not-allowed;
+  }
+
+  .cs-btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
+           bg-cs-card border border-cs-border text-sm text-cs-text-primary
+           rounded-md hover:border-cs-border-hover transition-colors
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .cs-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
+           text-sm text-cs-text-secondary rounded-md
+           hover:bg-cs-card hover:text-cs-text-primary transition-colors;
+  }
+
+  .cs-sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 text-sm text-cs-text-secondary
+           rounded-md hover:bg-cs-card hover:text-cs-text-primary
+           transition-colors cursor-pointer;
+  }
+
+  .cs-sidebar-item-active {
+    @apply flex items-center gap-3 px-3 py-2 text-sm text-cs-text-primary
+           bg-cs-card rounded-md font-medium;
+  }
+
+  .cs-badge {
+    @apply inline-flex items-center px-2 py-0.5 text-[11px] font-medium
+           rounded-full uppercase tracking-wide;
+  }
+}
