@@ -5,19 +5,29 @@ import { useDropzone } from "react-dropzone";
 import { useOnboardingStore } from "@/lib/store";
 import { Upload, X, FileText, Image, ArrowRight, ArrowLeft } from "lucide-react";
 
-const ACCEPTED_TYPES = {
+const ACCEPTED_TYPES: Record<string, string[]> = {
   "application/pdf": [".pdf"],
   "image/png": [".png"],
   "image/jpeg": [".jpg", ".jpeg"],
   "image/webp": [".webp"],
+  "image/gif": [".gif"],
   "text/plain": [".txt"],
   "text/csv": [".csv"],
+  // Word
+  "application/msword": [".doc"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+  // Excel
+  "application/vnd.ms-excel": [".xls"],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+  // PowerPoint
+  "application/vnd.ms-powerpoint": [".ppt"],
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
 };
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
 function FileIcon({ type }: { type: string }) {
@@ -38,7 +48,7 @@ export function FileUploadStep() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED_TYPES,
-    maxSize: 25 * 1024 * 1024, // 25 MB
+    maxSize: 25 * 1024 * 1024,
   });
 
   const handleContinue = () => {
@@ -56,18 +66,17 @@ export function FileUploadStep() {
             Upload Documents
           </h2>
           <p className="text-sm text-cs-text-secondary">
-            PDFs, brochures, floor plans, policy docs, images
+            PDFs, Word docs, spreadsheets, images, brochures, policy docs
           </p>
         </div>
       </div>
 
-      {/* Dropzone */}
       <div
         {...getRootProps()}
-        className={`
-          cs-card p-8 text-center cursor-pointer transition-colors
-          ${isDragActive ? "border-cs-accent-blue bg-cs-accent-blue/5" : "hover:border-cs-border-hover"}
-        `}
+        className={
+          "cs-card p-8 text-center cursor-pointer transition-colors " +
+          (isDragActive ? "border-cs-accent-blue bg-cs-accent-blue/5" : "hover:border-cs-border-hover")
+        }
       >
         <input {...getInputProps()} />
         <Upload size={32} className="mx-auto text-cs-text-muted mb-3" />
@@ -77,17 +86,16 @@ export function FileUploadStep() {
             : "Drag & drop files here, or click to browse"}
         </p>
         <p className="text-xs text-cs-text-muted mt-1">
-          PDF, PNG, JPG, WEBP, TXT, CSV — up to 25 MB each
+          PDF, Word, Excel, PowerPoint, images, CSV, TXT — up to 25 MB each
         </p>
       </div>
 
-      {/* File list */}
       {files.length > 0 && (
         <div className="mt-4 space-y-2">
           <p className="cs-label">UPLOADED FILES ({files.length})</p>
           {files.map((file, i) => (
             <div
-              key={`${file.name}-${i}`}
+              key={file.name + "-" + i}
               className="cs-card flex items-center gap-3 px-3 py-2.5"
             >
               <FileIcon type={file.type} />

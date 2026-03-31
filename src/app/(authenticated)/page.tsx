@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { StatCard } from "@/components/ui/StatCard";
 import { Spinner } from "@/components/ui/Spinner";
-import { FileInput, ClipboardCheck, FileText, Download } from "lucide-react";
+import {
+  FileInput, ClipboardCheck, FileText, FolderOpen, ArrowRight,
+  Globe, Building2,
+} from "lucide-react";
 
 interface Stats {
   totalProperties: number;
@@ -25,6 +28,14 @@ interface Stats {
     processing_status: string;
     created_at: string;
   }[];
+  workspaces: {
+    id: string;
+    property_url: string;
+    status: string;
+    pages_crawled: number;
+    files_processed: number;
+    created_at: string;
+  }[];
 }
 
 export default function DashboardPage() {
@@ -42,6 +53,7 @@ export default function DashboardPage() {
   }, []);
 
   function formatSize(bytes: number) {
+    if (!bytes) return "";
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
@@ -72,7 +84,42 @@ export default function DashboardPage() {
             <StatCard label="AVG CONFIDENCE" value={(stats?.avgConfidence ?? 0) + "%"} color="cyan" />
           </div>
 
-          {/* Recent files */}
+          {/* My Workspaces — primary action area */}
+          {stats?.workspaces && stats.workspaces.length > 0 && (
+            <div className="cs-card p-5 mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <p className="cs-label">MY WORKSPACES</p>
+                <Link href="/submissions" className="text-xs text-cs-accent-blue hover:underline">View all</Link>
+              </div>
+              <div className="space-y-2">
+                {stats.workspaces.slice(0, 5).map((w) => {
+                  const domain = (() => {
+                    try { return new URL(w.property_url).hostname; } catch { return w.property_url; }
+                  })();
+                  return (
+                    <Link
+                      key={w.id}
+                      href={"/onboarding/" + w.id + "/workspace"}
+                      className="flex items-center gap-3 py-3 px-4 bg-cs-surface border border-cs-border rounded-md hover:border-cs-accent-blue/50 transition group"
+                    >
+                      <div className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center flex-shrink-0">
+                        <Globe size={16} className="text-cs-accent-blue" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-cs-text-primary font-medium truncate">{domain}</p>
+                        <p className="text-[10px] text-cs-text-muted">
+                          {w.pages_crawled} pages · {w.files_processed} files · {new Date(w.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition flex-shrink-0" />
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent documents */}
           {stats?.recentFiles && stats.recentFiles.length > 0 && (
             <div className="cs-card p-5 mb-6">
               <p className="cs-label mb-3">RECENT DOCUMENTS</p>
@@ -105,8 +152,14 @@ export default function DashboardPage() {
 
       <div className="cs-card p-5">
         <p className="cs-label mb-3">QUICK ACTIONS</p>
-        <div className="flex gap-3">
-          <Link href="/onboarding" className="cs-btn-primary text-sm">
+        <div className="flex gap-3 flex-wrap">
+          {stats?.workspaces && stats.workspaces.length > 0 && (
+            <Link href={"/onboarding/" + stats.workspaces[0].id + "/workspace"} className="cs-btn-primary text-sm">
+              <FolderOpen size={16} />
+              Open Workspace
+            </Link>
+          )}
+          <Link href="/onboarding" className="cs-btn-secondary text-sm">
             <FileInput size={16} />
             New Onboarding
           </Link>
