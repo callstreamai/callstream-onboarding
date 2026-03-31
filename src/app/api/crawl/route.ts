@@ -7,13 +7,37 @@ export async function POST(req: NextRequest) {
     const supabase = createServiceClient();
     const { jobId, propertyUrl } = await req.json();
 
+    // Guard: Check if this job was already crawled
+    const { data: existingJob } = await supabase
+      .from("onboarding_jobs")
+      .select("status, pages_crawled")
+      .eq("id", jobId)
+      .single();
+
+    if (existingJob && (
+      existingJob.status === "crawl_complete" ||
+      existingJob.status === "extracting" ||
+      existingJob.status === "extraction_complete" ||
+      existingJob.status === "review_pending" ||
+      existingJob.status === "approved"
+    )) {
+      // Already crawled — return existing data
+      return NextResponse.json({
+        pagesCrawled: existingJob.pages_crawled || 0,
+        pagesFailed: 0,
+        totalPages: existingJob.pages_crawled || 0,
+        skipped: true,
+        message: "Already crawled",
+      });
+    }
+
     // Update job status
     await supabase
       .from("onboarding_jobs")
       .update({ status: "crawling" })
       .eq("id", jobId);
 
-    // Crawl the property
+    // Crawl the property (single crawl, max 30 pages)
     const results = await crawlProperty(propertyUrl, {
       maxPages: 30,
     });

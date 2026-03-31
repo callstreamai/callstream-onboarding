@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/lib/store";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
-import { Check, X, Globe, FileText, Brain } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 type Phase = "uploading" | "crawling" | "extracting" | "complete" | "error";
 
@@ -24,8 +24,12 @@ export function ProcessingStep() {
   const [phases, setPhases] = useState<PhaseStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const started = useRef(false);
 
   useEffect(() => {
+    // Guard: only run once
+    if (started.current) return;
+    started.current = true;
     startProcessing();
   }, []);
 
@@ -139,7 +143,7 @@ export function ProcessingStep() {
       ]);
 
       setTimeout(() => {
-        router.push(`/onboarding/${newJobId}/review`);
+        router.push("/onboarding/" + newJobId + "/workspace");
       }, 2000);
     } catch (err) {
       setCurrentPhase("error");
@@ -186,6 +190,7 @@ export function ProcessingStep() {
             onClick={() => {
               setError(null);
               setPhases([]);
+              started.current = false;
               startProcessing();
             }}
             className="cs-btn-secondary mt-3 text-xs"
