@@ -3,7 +3,7 @@
 import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ExtractionPanel } from "@/components/review/ExtractionPanel";
-import { Activity, Kanban, ClipboardCheck } from "lucide-react";
+import { Activity, Kanban, ClipboardCheck, FolderOpen } from "lucide-react";
 
 export default function ReviewPage() {
   const params = useParams();
@@ -12,6 +12,7 @@ export default function ReviewPage() {
 
   const tabs = [
     { label: "Status", href: "/onboarding/" + jobId + "/status", icon: Activity },
+    { label: "Workspace", href: "/onboarding/" + jobId + "/workspace", icon: FolderOpen },
     { label: "Project", href: "/onboarding/" + jobId + "/project", icon: Kanban },
     { label: "Review", href: "/onboarding/" + jobId + "/review", icon: ClipboardCheck },
   ];
