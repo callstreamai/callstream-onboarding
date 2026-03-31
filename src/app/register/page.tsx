@@ -7,11 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -19,27 +20,56 @@ export default function RegisterPage() {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    // Step 1: Sign up via Supabase auth
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
           company_name: companyName,
-          role: "client",
         },
+        emailRedirectTo: (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/auth/callback",
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      // If trigger fails, try to create profile via API fallback
+      if (signUpError.message.includes("Database error")) {
+        try {
+          const res = await fetch("/api/register-fallback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, fullName, companyName }),
+          });
+          const result = await res.json();
+          if (result.success) {
+            setSuccess("Account created. Check your email to confirm, then sign in.");
+            setLoading(false);
+            return;
+          } else {
+            setError(result.error || "Registration failed. Please contact support.");
+            setLoading(false);
+            return;
+          }
+        } catch {
+          setError("Registration failed. Please contact support.");
+          setLoading(false);
+          return;
+        }
+      }
+      setError(signUpError.message);
       setLoading(false);
-    } else {
-      router.push("/");
-      router.refresh();
+      return;
     }
+
+    if (data?.user) {
+      setSuccess("Account created! Check your email to confirm your account.");
+    }
+    setLoading(false);
   }
 
   return (
@@ -69,23 +99,22 @@ export default function RegisterPage() {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="John Smith"
+                placeholder="John Doe"
                 className="cs-input"
                 required
               />
             </div>
-
             <div>
               <label className="cs-label block mb-1.5">COMPANY NAME</label>
               <input
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Acme Hotels"
+                placeholder="Your company"
                 className="cs-input"
+                required
               />
             </div>
-
             <div>
               <label className="cs-label block mb-1.5">EMAIL</label>
               <input
@@ -97,7 +126,6 @@ export default function RegisterPage() {
                 required
               />
             </div>
-
             <div>
               <label className="cs-label block mb-1.5">PASSWORD</label>
               <input
@@ -111,26 +139,18 @@ export default function RegisterPage() {
               />
             </div>
 
-            {error && (
-              <p className="text-xs text-cs-accent-red">{error}</p>
-            )}
+            {error && <p className="text-xs text-cs-accent-red">{error}</p>}
+            {success && <p className="text-xs text-cs-accent-green">{success}</p>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="cs-btn-primary w-full"
-            >
+            <button type="submit" disabled={loading} className="cs-btn-primary w-full">
               <UserPlus size={16} />
-              {loading ? "Creating account..." : "Create account"}
+              {loading ? "Creating..." : "Create account"}
             </button>
           </form>
 
           <p className="text-xs text-cs-text-muted text-center mt-4">
             Already have an account?{" "}
-            <Link
-              href="/login"
-              className="text-cs-accent-blue hover:underline"
-            >
+            <Link href="/login" className="text-cs-accent-blue hover:underline">
               Sign in
             </Link>
           </p>
