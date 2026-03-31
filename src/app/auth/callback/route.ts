@@ -3,9 +3,12 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
+
+  // Use the configured app URL, not the request origin (which may be localhost on Render)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://launch.callstreamai.com";
 
   if (code) {
     const cookieStore = cookies();
@@ -30,9 +33,9 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(new URL(next, origin));
+      return NextResponse.redirect(new URL(next, appUrl));
     }
   }
 
-  return NextResponse.redirect(new URL("/login", origin));
+  return NextResponse.redirect(new URL("/login", appUrl));
 }

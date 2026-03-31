@@ -19,7 +19,6 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
     let existingUser = usersData?.users?.find((u: any) => u.email === email);
 
     if (!existingUser) {
-      // Create user via admin API with a random password (they will use magic link)
       const tempPassword = crypto.randomUUID().slice(0, 20) + "!Aa1";
       const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
         email,
@@ -33,7 +32,6 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
       }
       existingUser = newUser?.user || null;
     } else {
-      // Confirm email if not already
       if (!existingUser.email_confirmed_at) {
         await adminClient.auth.admin.updateUserById(existingUser.id, {
           email_confirm: true,
@@ -53,24 +51,20 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
       role: "client",
     }, { onConflict: "id" });
 
-    // Link user to account via account_users (no role column — table only has account_id, user_id)
-    const { error: auErr } = await supabase.from("account_users").upsert({
+    // Link user to account
+    await supabase.from("account_users").upsert({
       account_id: params.accountId,
       user_id: existingUser.id,
     }, { onConflict: "account_id,user_id" });
 
-    if (auErr) {
-      console.error("account_users upsert error:", auErr.message);
-    }
-
-    // Get the account to find its onboarding job
+    // Get the account
     const { data: account } = await supabase
       .from("accounts")
       .select("onboarding_job_id, name")
       .eq("id", params.accountId)
       .single();
 
-    // If there is a job, add user as project member
+    // Add as project member if job exists
     if (account?.onboarding_job_id) {
       await supabase.from("project_members").upsert({
         job_id: account.onboarding_job_id,
@@ -79,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
       }, { onConflict: "job_id,user_id" }).then(() => {});
     }
 
-    // Generate a magic link via admin API
+    // Generate magic link via Supabase Admin API
     const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
       email,
@@ -92,11 +86,37 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
       return NextResponse.json({ error: linkErr?.message || "Failed to generate link" }, { status: 500 });
     }
 
-    // Extract action_link from the response
-    const actionLink = (linkData as any).properties?.action_link || "";
+    // Extract action_link — handle all possible response shapes from Supabase JS client
+    const ld = linkData as any;
+    const actionLink =
+      ld?.properties?.action_link ||
+      ld?.action_link ||
+      ld?.user?.action_link ||
+      "";
+
+    // If we still can't find it, build it manually from the hashed_token
+    let magicLink = actionLink;
+    if (!magicLink) {
+      const hashedToken =
+        ld?.properties?.hashed_token ||
+        ld?.hashed_token ||
+        ld?.user?.hashed_token ||
+        "";
+      if (hashedToken) {
+        magicLink = process.env.NEXT_PUBLIC_SUPABASE_URL +
+          "/auth/v1/verify?token=" + hashedToken +
+          "&type=magiclink" +
+          "&redirect_to=" + encodeURIComponent(appUrl + "/auth/callback");
+      }
+    }
+
+    // Final fallback: just provide the login URL
+    if (!magicLink) {
+      magicLink = appUrl + "/login";
+    }
 
     // Build onboarding URL
-    let onboardingUrl = appUrl + "/login";
+    let onboardingUrl = appUrl;
     if (account?.onboarding_job_id) {
       onboardingUrl = appUrl + "/onboarding/" + account.onboarding_job_id + "/workspace";
     }
@@ -104,7 +124,7 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
     return NextResponse.json({
       success: true,
       userId: existingUser.id,
-      magicLink: actionLink,
+      magicLink,
       onboardingUrl,
       loginUrl: appUrl + "/login",
       propertyName: account?.name || "",
