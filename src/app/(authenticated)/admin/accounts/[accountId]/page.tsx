@@ -7,7 +7,7 @@ import type { Account, Contact } from "@/types/account";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   Building2, UserPlus, Plus, Trash2, FileInput, ArrowLeft,
-  Phone, Mail, Star, ArrowRight,
+  Phone, Mail, Star, ArrowRight, Link2, Copy, Check, ExternalLink,
 } from "lucide-react";
 
 export default function AccountDetailPage() {
@@ -28,13 +28,18 @@ export default function AccountDetailPage() {
   });
   const [saving, setSaving] = useState(false);
 
+  // Link generation
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [generatedLinks, setGeneratedLinks] = useState<Record<string, { magicLink: string; loginUrl: string; onboardingUrl: string }>>({});
+  const [copied, setCopied] = useState<string | null>(null);
+
   useEffect(() => {
     if (!authLoading && !isAdmin) { router.push("/"); return; }
     fetchData();
   }, [authLoading, isAdmin, accountId]);
 
   async function fetchData() {
-    const res = await fetch(`/api/admin/accounts/${accountId}`);
+    const res = await fetch("/api/admin/accounts/" + accountId);
     if (res.ok) {
       const data = await res.json();
       setAccount(data.account);
@@ -47,7 +52,7 @@ export default function AccountDetailPage() {
   async function addContact(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch(`/api/admin/accounts/${accountId}/contacts`, {
+    const res = await fetch("/api/admin/accounts/" + accountId + "/contacts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(contactForm),
@@ -62,7 +67,7 @@ export default function AccountDetailPage() {
   }
 
   async function deleteContact(contactId: string) {
-    await fetch(`/api/admin/accounts/${accountId}/contacts`, {
+    await fetch("/api/admin/accounts/" + accountId + "/contacts", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contactId }),
@@ -70,9 +75,42 @@ export default function AccountDetailPage() {
     setContacts(contacts.filter((c) => c.id !== contactId));
   }
 
-  async function startOnboarding() {
-    if (!account) return;
-    router.push(`/admin/accounts/${accountId}/onboard`);
+  async function generateLink(contact: Contact) {
+    if (!contact.email) return;
+    setGeneratingFor(contact.id);
+    try {
+      const res = await fetch("/api/admin/accounts/" + accountId + "/generate-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: contact.email,
+          fullName: contact.full_name,
+          contactId: contact.id,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGeneratedLinks((prev) => ({
+          ...prev,
+          [contact.id]: {
+            magicLink: data.magicLink,
+            loginUrl: data.loginUrl,
+            onboardingUrl: data.onboardingUrl,
+          },
+        }));
+      }
+    } catch {}
+    setGeneratingFor(null);
+  }
+
+  function copyToClipboard(text: string, id: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  function startOnboarding() {
+    router.push("/admin/accounts/" + accountId + "/onboard");
   }
 
   if (loading || authLoading) {
@@ -82,6 +120,8 @@ export default function AccountDetailPage() {
   if (!account) {
     return <div className="cs-card p-8 text-center"><p className="text-cs-text-muted">Account not found</p></div>;
   }
+
+  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
     <div>
@@ -154,20 +194,88 @@ export default function AccountDetailPage() {
         ) : (
           <div className="space-y-2">
             {contacts.map((c) => (
-              <div key={c.id} className="flex items-center justify-between bg-cs-surface border border-cs-border rounded-md p-3">
-                <div className="flex items-center gap-3">
-                  {c.is_primary && <Star size={12} className="text-cs-accent-orange" />}
-                  <div>
-                    <p className="text-sm text-cs-text-primary">{c.full_name}{c.title && <span className="text-cs-text-muted"> · {c.title}</span>}</p>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      {c.email && <span className="text-xs text-cs-text-muted flex items-center gap-1"><Mail size={10} />{c.email}</span>}
-                      {c.phone && <span className="text-xs text-cs-text-muted flex items-center gap-1"><Phone size={10} />{c.phone}</span>}
+              <div key={c.id} className="bg-cs-surface border border-cs-border rounded-md p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {c.is_primary && <Star size={12} className="text-cs-accent-orange" />}
+                    <div>
+                      <p className="text-sm text-cs-text-primary">{c.full_name}{c.title && <span className="text-cs-text-muted"> · {c.title}</span>}</p>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        {c.email && <span className="text-xs text-cs-text-muted flex items-center gap-1"><Mail size={10} />{c.email}</span>}
+                        {c.phone && <span className="text-xs text-cs-text-muted flex items-center gap-1"><Phone size={10} />{c.phone}</span>}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    {c.email && (
+                      <button
+                        onClick={() => generateLink(c)}
+                        disabled={generatingFor === c.id}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-cs-accent-blue/10 text-cs-accent-blue hover:bg-cs-accent-blue/20 transition"
+                      >
+                        <Link2 size={12} />
+                        {generatingFor === c.id ? "Generating..." : "Get Login Link"}
+                      </button>
+                    )}
+                    <button onClick={() => deleteContact(c.id)} className="text-cs-text-muted hover:text-cs-accent-red transition-colors p-1">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-                <button onClick={() => deleteContact(c.id)} className="text-cs-text-muted hover:text-cs-accent-red transition-colors">
-                  <Trash2 size={14} />
-                </button>
+
+                {/* Generated links panel */}
+                {generatedLinks[c.id] && (
+                  <div className="mt-3 p-3 bg-cs-bg rounded-md space-y-2 border border-cs-border">
+                    <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Login credentials created for {c.email}</p>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-cs-text-muted uppercase w-20 flex-shrink-0">Magic Link</span>
+                        <div className="flex-1 text-xs text-cs-text-secondary bg-cs-surface px-2 py-1 rounded truncate">
+                          {generatedLinks[c.id].magicLink.slice(0, 60)}...
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(generatedLinks[c.id].magicLink, c.id + "-magic")}
+                          className="flex items-center gap-1 text-[10px] text-cs-accent-blue hover:underline flex-shrink-0"
+                        >
+                          {copied === c.id + "-magic" ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-cs-text-muted uppercase w-20 flex-shrink-0">Login Page</span>
+                        <div className="flex-1 text-xs text-cs-text-secondary bg-cs-surface px-2 py-1 rounded truncate">
+                          {generatedLinks[c.id].loginUrl}
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(generatedLinks[c.id].loginUrl, c.id + "-login")}
+                          className="flex items-center gap-1 text-[10px] text-cs-accent-blue hover:underline flex-shrink-0"
+                        >
+                          {copied === c.id + "-login" ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
+                        </button>
+                      </div>
+
+                      {generatedLinks[c.id].onboardingUrl !== generatedLinks[c.id].loginUrl && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-cs-text-muted uppercase w-20 flex-shrink-0">Workspace</span>
+                          <div className="flex-1 text-xs text-cs-text-secondary bg-cs-surface px-2 py-1 rounded truncate">
+                            {generatedLinks[c.id].onboardingUrl}
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(generatedLinks[c.id].onboardingUrl, c.id + "-onboard")}
+                            className="flex items-center gap-1 text-[10px] text-cs-accent-blue hover:underline flex-shrink-0"
+                          >
+                            {copied === c.id + "-onboard" ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-[10px] text-cs-text-muted mt-1">
+                      Send the magic link for one-click sign-in, or the login page URL for them to use email + magic link.
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -182,16 +290,24 @@ export default function AccountDetailPage() {
         ) : (
           <div className="space-y-2">
             {jobs.map((job: any) => (
-              <div key={job.id} className="flex items-center justify-between bg-cs-surface border border-cs-border rounded-md p-3">
-                <div>
-                  <p className="text-sm text-cs-text-primary">{job.property_url}</p>
-                  <p className="text-xs text-cs-text-muted">{job.status.replace(/_/g, " ")} · {new Date(job.created_at).toLocaleDateString()}</p>
-                </div>
-                <div className="flex gap-2">
-                  <a href={`/api/jobs/${job.id}/export`} download className="cs-btn-ghost text-xs py-1">JSON</a>
-                  <button onClick={() => router.push(`/onboarding/${job.id}/review`)} className="cs-btn-ghost text-xs py-1">
-                    <ArrowRight size={12} /> View
-                  </button>
+              <div key={job.id} className="bg-cs-surface border border-cs-border rounded-md p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-cs-text-primary">{job.property_url}</p>
+                    <p className="text-xs text-cs-text-muted">{job.status.replace(/_/g, " ")} · {new Date(job.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => copyToClipboard(appUrl + "/onboarding/" + job.id + "/workspace", "job-" + job.id)}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-cs-accent-purple/10 text-cs-accent-purple hover:bg-cs-accent-purple/20 transition"
+                    >
+                      {copied === "job-" + job.id ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Link</>}
+                    </button>
+                    <a href={"/api/jobs/" + job.id + "/export"} download className="cs-btn-ghost text-xs py-1">JSON</a>
+                    <button onClick={() => router.push("/onboarding/" + job.id + "/workspace")} className="cs-btn-ghost text-xs py-1">
+                      <ArrowRight size={12} /> View
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
