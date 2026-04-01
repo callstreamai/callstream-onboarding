@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createSupabase } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function GET(req: NextRequest) {
   try {
-    // Get the current user from the session cookie
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,19 +23,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Use service role to bypass RLS (avoids infinite recursion)
-    const serviceClient = createSupabase(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
+    // Fetch profile via raw PostgREST
+    const profileRes = await fetch(
+      process.env.NEXT_PUBLIC_SUPABASE_URL + "/rest/v1/profiles?id=eq." + user.id + "&select=*&limit=1",
+      {
+        headers: {
+          "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          "Authorization": "Bearer " + process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        },
+        cache: "no-store",
+      }
     );
-    const { data: profile, error } = await serviceClient
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    const profiles = await profileRes.json();
+    const profile = Array.isArray(profiles) && profiles.length > 0 ? profiles[0] : null;
 
-    if (error || !profile) {
+    if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
