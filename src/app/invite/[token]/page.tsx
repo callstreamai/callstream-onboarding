@@ -49,7 +49,7 @@ export default function InvitePage() {
     <div className="min-h-screen bg-cs-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-sm font-bold tracking-wide text-cs-text-primary">CALL STREAM AI</h1>
+          <h1 className="text-sm font-bold tracking-wide text-cs-text-primary"><img src="https://47891501.fs1.hubspotusercontent-na1.net/hubfs/47891501/Logos/White%20Call%20Stream%20Logo.png" alt="Call Stream AI" className="h-8 w-auto" /></h1>
           <p className="text-[10px] text-cs-text-muted uppercase tracking-widest mt-0.5">ONBOARDING PLATFORM</p>
         </div>
 

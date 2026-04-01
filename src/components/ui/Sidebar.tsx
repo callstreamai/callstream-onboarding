@@ -40,8 +40,8 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-56 bg-cs-bg border-r border-cs-border flex flex-col z-50">
       <div className="px-5 pt-5 pb-4">
-        <h1 className="text-sm font-bold tracking-wide text-cs-text-primary">CALL STREAM AI</h1>
-        <p className="text-[10px] text-cs-text-muted uppercase tracking-widest mt-0.5">CALLSTREAMAI.COM</p>
+        <img src="https://47891501.fs1.hubspotusercontent-na1.net/hubfs/47891501/Logos/White%20Call%20Stream%20Logo.png" alt="Call Stream AI" className="h-7 w-auto" />
+        <p className="text-[10px] text-cs-text-muted uppercase tracking-widest mt-1">CALLSTREAMAI.COM</p>
       </div>
 
       <div className="mx-3 mb-4 px-3 py-2.5 bg-cs-card rounded-md border border-cs-border">
