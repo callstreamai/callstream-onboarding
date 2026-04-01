@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { accountId: string } }
 ) {
   try {
-    const supabase = createServiceClient();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
     const { accountId } = params;
 
     const { data: account } = await supabase
@@ -42,7 +46,11 @@ export async function PATCH(
   { params }: { params: { accountId: string } }
 ) {
   try {
-    const supabase = createServiceClient();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
     const body = await req.json();
 
     const { error } = await supabase

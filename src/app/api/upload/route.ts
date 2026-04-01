@@ -16,12 +16,25 @@ export async function POST(req: NextRequest) {
     const userId = formData.get("userId") as string | null;
     const files = formData.getAll("files") as File[];
 
+    // Find user's account
+    let accountId: string | null = null;
+    if (userId) {
+      const { data: au } = await supabase
+        .from("account_users")
+        .select("account_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .single();
+      if (au) accountId = au.account_id;
+    }
+
     // Create onboarding job
     const { data: job, error: jobError } = await supabase
       .from("onboarding_jobs")
       .insert({
         property_url: propertyUrl,
         property_name: propertyName || null,
+        account_id: accountId,
         vertical,
         status: "consent_given",
         consent_given: true,

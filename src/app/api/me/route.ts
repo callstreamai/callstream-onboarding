@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient as createSupabase } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -26,7 +26,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Use service role to bypass RLS (avoids infinite recursion)
-    const serviceClient = createServiceClient();
+    const serviceClient = createSupabase(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
     const { data: profile, error } = await serviceClient
       .from("profiles")
       .select("*")
