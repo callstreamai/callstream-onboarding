@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 // GET: Fetch full project data (milestones, tasks, comments)
 export async function GET(
@@ -7,7 +7,11 @@ export async function GET(
   { params }: { params: { jobId: string } }
 ) {
   try {
-    const supabase = createServiceClient();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
     const { jobId } = params;
 
     const [milestonesRes, tasksRes, commentsRes] = await Promise.all([

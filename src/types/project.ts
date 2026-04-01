@@ -6,6 +6,7 @@ export type NotificationType = "mention" | "task_assigned" | "task_due" | "miles
 export interface Milestone {
   id: string;
   job_id: string;
+  parent_id: string | null;
   name: string;
   description: string | null;
   sort_order: number;
@@ -13,6 +14,7 @@ export interface Milestone {
   target_date: string | null;
   completed_at: string | null;
   created_at: string;
+  children?: Milestone[];
 }
 
 export interface Task {
@@ -29,7 +31,6 @@ export interface Task {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
-  // Joined
   assignee_name?: string;
   assignee_email?: string;
 }
@@ -42,7 +43,6 @@ export interface Comment {
   mentions: string[];
   created_at: string;
   updated_at: string;
-  // Joined
   author_name?: string;
   author_email?: string;
 }
@@ -58,7 +58,6 @@ export interface Notification {
   created_at: string;
 }
 
-// Default milestones for new onboarding projects
 export const DEFAULT_MILESTONES = [
   { name: "Kickoff", description: "Account created, onboarding initiated", sort_order: 0 },
   { name: "Website Crawl", description: "Property website crawled and indexed", sort_order: 1 },
