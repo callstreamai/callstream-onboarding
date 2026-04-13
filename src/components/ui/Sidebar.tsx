@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
   LayoutDashboard, FileInput, ClipboardCheck, Settings,
-  Users, LogOut, FolderOpen, Building2,
+  Users, LogOut, FolderOpen, Building2, CalendarSearch,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -24,6 +24,12 @@ export function Sidebar() {
     },
     ...(isAdmin
       ? [
+          {
+            label: "TOOLS",
+            items: [
+              { label: "Event Scraper", href: "/tools/event-scraper", icon: CalendarSearch },
+            ],
+          },
           {
             label: "ADMIN",
             items: [
