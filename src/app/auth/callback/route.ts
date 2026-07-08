@@ -32,7 +32,12 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // If this is an invite or the user has no password set, send to complete-signup
+      // Recovery / password reset -> go to reset-password page
+      if (type === "recovery") {
+        return NextResponse.redirect(new URL("/auth/reset-password", appUrl));
+      }
+
+      // Invite or new user with no password -> complete signup
       const isInvite = type === "invite" || next.includes("complete-signup");
       const hasNoPassword = data?.user?.app_metadata?.provider === "email" &&
         !data?.user?.last_sign_in_at && data?.user?.created_at === data?.user?.updated_at;
