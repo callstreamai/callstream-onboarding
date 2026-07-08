@@ -60,7 +60,8 @@ export async function GET() {
     // 1. Keep only Bland Curated voices
     // 2. Clean names & exclude junk
     // 3. Deduplicate by name — prefer V3 (UUID) over older slug IDs
-    const byName = new Map<string, { id: string; name: string; description: string | null; preview_url: string | null; v3: boolean }>();
+    interface VoiceEntry { id: string; name: string; description: string | null; preview_url: string | null; v3: boolean; }
+    const byName = new Map<string, VoiceEntry>();
 
     for (const v of raw) {
       if (!isCurated(v)) continue;
