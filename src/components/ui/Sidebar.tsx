@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
-  LayoutDashboard, FileInput, ClipboardCheck, Settings,
+  LayoutDashboard, FileInput, Mic2, Settings,
   Users, LogOut, FolderOpen, Building2, CalendarSearch,
 } from "lucide-react";
 
@@ -19,7 +19,7 @@ export function Sidebar() {
         { label: "Dashboard", href: "/", icon: LayoutDashboard },
         { label: "Onboarding", href: "/onboarding", icon: FileInput },
         { label: "My Submissions", href: "/submissions", icon: FolderOpen },
-        { label: "Review", href: "/review", icon: ClipboardCheck },
+        { label: "Voice Preview", href: "/review", icon: Mic2 },
       ],
     },
     ...(isAdmin
