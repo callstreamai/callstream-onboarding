@@ -2,12 +2,12 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-// /review has been renamed to /voice-preview
 export default function ReviewRedirect() {
   const params = useParams();
   const router = useRouter();
+  const jobId = Array.isArray(params.jobId) ? params.jobId[0] : (params.jobId as string);
   useEffect(() => {
-    router.replace("/onboarding/" + params.jobId + "/voice-preview");
-  }, [params.jobId, router]);
+    if (jobId) router.replace("/onboarding/" + jobId + "/voice-preview");
+  }, [jobId, router]);
   return null;
 }
