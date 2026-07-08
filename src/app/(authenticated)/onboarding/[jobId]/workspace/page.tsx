@@ -117,9 +117,18 @@ export default function WorkspacePage() {
     });
     if (res.ok) {
       const data = await res.json();
-      setInviteUrl(data.inviteUrl);
       setInviteEmail("");
       loadWorkspace();
+      if (data.emailSent) {
+        setInviteUrl("✓ Invitation email sent to " + (data.invitation?.email || "team member"));
+      } else if (data.inviteUrl) {
+        setInviteUrl(data.inviteUrl);
+      } else {
+        setInviteUrl("✓ Contact added to project");
+      }
+    } else {
+      const err = await res.json();
+      setInviteUrl("Error: " + (err.error || "Failed to send invite"));
     }
   }
 
