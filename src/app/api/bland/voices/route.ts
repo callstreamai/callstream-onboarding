@@ -1,20 +1,35 @@
 import { NextResponse } from "next/server";
 
+const DEFAULT_VOICES = [
+  { id: "maya", name: "Maya", description: "Young American Female" },
+  { id: "ryan", name: "Ryan", description: "Professional American Male" },
+  { id: "mason", name: "Mason", description: "American Male" },
+  { id: "nat", name: "Nat", description: "Friendly, conversational" },
+  { id: "tina", name: "Tina", description: "Gentle American Female" },
+  { id: "evelyn", name: "Evelyn", description: "Refined, professional" },
+  { id: "adriana", name: "Adriana", description: "Energetic, engaging" },
+  { id: "jen", name: "Jen", description: "Approachable, natural" },
+  { id: "derek", name: "Derek", description: "Deep American Male" },
+  { id: "sophie", name: "Sophie", description: "Bright British Female" },
+  { id: "oliver", name: "Oliver", description: "Warm British Male" },
+  { id: "isabella", name: "Isabella", description: "Smooth American Female" },
+  { id: "ethan", name: "Ethan", description: "Confident American Male" },
+  { id: "grace", name: "Grace", description: "Southern American Female" },
+  { id: "jake", name: "Jake", description: "Casual American Male" },
+  { id: "aria", name: "Aria", description: "Clear American Female" },
+  { id: "daniel", name: "Daniel", description: "Australian Male" },
+  { id: "emma", name: "Emma", description: "Australian Female" },
+  { id: "carlos", name: "Carlos", description: "American Spanish Accent Male" },
+  { id: "luna", name: "Luna", description: "Soft American Female" },
+  { id: "marcus", name: "Marcus", description: "Authoritative American Male" },
+  { id: "stella", name: "Stella", description: "Expressive American Female" },
+];
+
 export async function GET() {
   const apiKey = process.env.BLAND_API_KEY;
 
   if (!apiKey) {
-    // Default voices when no key configured
-    return NextResponse.json({
-      voices: [
-        { id: "nat", name: "Nat", description: "Friendly, conversational" },
-        { id: "maya", name: "Maya", description: "Professional, warm" },
-        { id: "ryan", name: "Ryan", description: "Clear, calm" },
-        { id: "adriana", name: "Adriana", description: "Energetic, engaging" },
-        { id: "evelyn", name: "Evelyn", description: "Refined, professional" },
-        { id: "jen", name: "Jen", description: "Approachable, natural" },
-      ],
-    });
+    return NextResponse.json({ voices: DEFAULT_VOICES });
   }
 
   try {
@@ -29,8 +44,8 @@ export async function GET() {
       description: v.description || null,
       preview_url: v.preview_url || null,
     }));
-    return NextResponse.json({ voices });
+    return NextResponse.json({ voices: voices.length > 0 ? voices : DEFAULT_VOICES });
   } catch {
-    return NextResponse.json({ voices: [] }, { status: 500 });
+    return NextResponse.json({ voices: DEFAULT_VOICES });
   }
 }
