@@ -5,7 +5,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/types/auth";
 import { Spinner } from "@/components/ui/Spinner";
-import { Users, Shield, User, UserPlus, Send, X } from "lucide-react";
+import { Users, Shield, User, UserPlus, Send, X, Copy, Check, Link2 } from "lucide-react";
 
 export default function AdminUsersPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -16,7 +16,9 @@ export default function AdminUsersPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "client">("client");
   const [inviting, setInviting] = useState(false);
-  const [inviteMsg, setInviteMsg] = useState("");
+  const [inviteResult, setInviteResult] = useState<{ link: string; email: string } | null>(null);
+  const [inviteError, setInviteError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -49,7 +51,8 @@ export default function AdminUsersPage() {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
     setInviting(true);
-    setInviteMsg("");
+    setInviteError("");
+    setInviteResult(null);
     try {
       const res = await fetch("/api/admin/users/invite", {
         method: "POST",
@@ -57,16 +60,34 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setInviteMsg("Invitation sent to " + inviteEmail.trim());
+      if (res.ok && data.inviteLink) {
+        setInviteResult({ link: data.inviteLink, email: inviteEmail.trim() });
         setInviteEmail("");
         loadUsers();
       } else {
-        setInviteMsg("Error: " + (data.error || "Failed to invite"));
+        setInviteError(data.error || "Failed to invite user");
       }
+    } catch {
+      setInviteError("Network error — please try again");
     } finally {
       setInviting(false);
     }
+  }
+
+  function copyLink() {
+    if (!inviteResult?.link) return;
+    navigator.clipboard.writeText(inviteResult.link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
+
+  function reset() {
+    setShowInvite(false);
+    setInviteResult(null);
+    setInviteError("");
+    setInviteEmail("");
+    setCopied(false);
   }
 
   if (authLoading || (!isAdmin && !authLoading)) {
@@ -81,7 +102,7 @@ export default function AdminUsersPage() {
           <h1 className="text-2xl font-semibold">Users</h1>
         </div>
         <button
-          onClick={() => { setShowInvite(!showInvite); setInviteMsg(""); }}
+          onClick={() => { setShowInvite(true); setInviteResult(null); setInviteError(""); }}
           className="cs-btn-primary text-sm"
         >
           <UserPlus size={14} />
@@ -90,11 +111,11 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Invite form */}
-      {showInvite && (
+      {showInvite && !inviteResult && (
         <div className="cs-card p-5 mb-6">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-cs-text-primary">Invite a new user</p>
-            <button onClick={() => setShowInvite(false)} className="text-cs-text-muted hover:text-cs-text-secondary">
+            <button onClick={reset} className="text-cs-text-muted hover:text-cs-text-secondary">
               <X size={14} />
             </button>
           </div>
@@ -126,11 +147,52 @@ export default function AdminUsersPage() {
               {inviting ? "Sending..." : "Send Invite"}
             </button>
           </form>
-          {inviteMsg && (
-            <p className={"text-xs mt-3 " + (inviteMsg.startsWith("Error") ? "text-cs-accent-red" : "text-cs-accent-green")}>
-              {inviteMsg}
-            </p>
+          {inviteError && (
+            <p className="text-xs mt-3 text-cs-accent-red">{inviteError}</p>
           )}
+        </div>
+      )}
+
+      {/* Invite success — show copy link */}
+      {inviteResult && (
+        <div className="cs-card p-5 mb-6 border border-cs-accent-green/30">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-cs-accent-green/15 flex items-center justify-center">
+                <Check size={12} className="text-cs-accent-green" />
+              </div>
+              <p className="text-sm font-medium text-cs-text-primary">
+                Invite created for {inviteResult.email}
+              </p>
+            </div>
+            <button onClick={reset} className="text-cs-text-muted hover:text-cs-text-secondary">
+              <X size={14} />
+            </button>
+          </div>
+
+          <p className="text-xs text-cs-text-muted mb-3">
+            An email has been sent. You can also copy the link below to share via text or any other channel.
+          </p>
+
+          <div className="flex items-center gap-2 p-3 bg-cs-bg rounded-lg border border-cs-border">
+            <Link2 size={12} className="text-cs-text-muted flex-shrink-0" />
+            <p className="text-xs text-cs-text-secondary truncate flex-1 font-mono">
+              {inviteResult.link}
+            </p>
+            <button
+              onClick={copyLink}
+              className={"flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition flex-shrink-0 " +
+                (copied
+                  ? "bg-cs-accent-green/15 text-cs-accent-green"
+                  : "bg-cs-border/60 text-cs-text-secondary hover:bg-cs-border hover:text-cs-text-primary")}
+            >
+              {copied ? <><Check size={11} /> Copied!</> : <><Copy size={11} /> Copy link</>}
+            </button>
+          </div>
+
+          <p className="text-[10px] text-cs-text-muted mt-2">
+            This link expires in 24 hours and can only be used once.
+          </p>
         </div>
       )}
 
