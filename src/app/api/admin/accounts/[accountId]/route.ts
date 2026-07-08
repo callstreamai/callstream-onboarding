@@ -1,46 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const SB_URL = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SB_KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-function sbHeaders() {
-  return {
-    "apikey": SB_KEY(),
-    "Authorization": "Bearer " + SB_KEY(),
-    "Content-Type": "application/json",
-  };
-}
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest, { params }: { params: { accountId: string } }) {
   try {
+    const supabase = createServiceClient();
     const accountId = params.accountId;
 
-    const [accountRes, contactsRes, jobsRes] = await Promise.all([
-      fetch(SB_URL() + "/rest/v1/accounts?id=eq." + accountId + "&select=*&limit=1", {
-        headers: sbHeaders(), cache: "no-store",
-      }),
-      fetch(SB_URL() + "/rest/v1/account_contacts?account_id=eq." + accountId + "&select=*&order=is_primary.desc", {
-        headers: sbHeaders(), cache: "no-store",
-      }),
-      fetch(SB_URL() + "/rest/v1/onboarding_jobs?account_id=eq." + accountId + "&select=*&order=created_at.desc", {
-        headers: sbHeaders(), cache: "no-store",
-      }),
-    ]);
+    // Get account
+    const { data: account, error: accError } = await supabase
+      .from("accounts")
+      .select("*")
+      .eq("id", accountId)
+      .single();
+    if (accError || !account) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const accounts = await accountRes.json();
-    const contacts = await contactsRes.json();
-    const jobs = await jobsRes.json();
+    // Get contacts
+    const { data: contacts } = await supabase
+      .from("account_contacts")
+      .select("*")
+      .eq("account_id", accountId)
+      .order("is_primary", { ascending: false });
 
-    const account = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] : null;
-    if (!account) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Get jobs linked by account_id
+    const { data: linkedJobs } = await supabase
+      .from("onboarding_jobs")
+      .select("*")
+      .eq("account_id", accountId)
+      .order("created_at", { ascending: false });
+
+    // Also find unlinked jobs that match by property name or URL (fallback)
+    let unlinkedMatches: any[] = [];
+    if (account.name || account.property_url) {
+      let query = supabase
+        .from("onboarding_jobs")
+        .select("*")
+        .is("account_id", null)
+        .order("created_at", { ascending: false });
+
+      const { data: allUnlinked } = await query;
+      if (allUnlinked) {
+        unlinkedMatches = allUnlinked.filter((job) => {
+          const nameMatch = account.name && job.property_name &&
+            job.property_name.toLowerCase().includes(account.name.toLowerCase().split(" ")[0]);
+          const urlMatch = account.property_url && job.property_url &&
+            job.property_url.includes(new URL(account.property_url).hostname);
+          return nameMatch || urlMatch;
+        });
+      }
     }
+
+    const jobs = [
+      ...(linkedJobs || []),
+      ...unlinkedMatches.map((j) => ({ ...j, _unlinked: true })),
+    ];
 
     return NextResponse.json({
       account,
-      contacts: Array.isArray(contacts) ? contacts : [],
-      jobs: Array.isArray(jobs) ? jobs : [],
+      contacts: contacts || [],
+      jobs,
     });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: { accountId: string } }) {
+  try {
+    const supabase = createServiceClient();
+    const { jobId } = await req.json();
+    if (!jobId) return NextResponse.json({ error: "jobId required" }, { status: 400 });
+
+    const { error } = await supabase
+      .from("onboarding_jobs")
+      .update({ account_id: params.accountId })
+      .eq("id", jobId);
+
+    if (error) throw error;
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed" }, { status: 500 });
   }
