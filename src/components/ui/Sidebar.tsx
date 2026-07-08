@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -13,12 +14,12 @@ export function Sidebar() {
   const { profile, isAdmin, signOut } = useAuth();
 
   const submissionsLabel = isAdmin ? "My Submissions" : "My Projects";
-  const mainItems = [
+  const mainItems: { label: string; href: string; icon: React.ElementType }[] = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    ...(isAdmin ? [{ label: "Onboarding", href: "/onboarding", icon: FileInput }] : []),
     { label: submissionsLabel, href: "/submissions", icon: FolderOpen },
     { label: "Voice Preview", href: "/voice-preview", icon: Mic2 },
   ];
+  if (isAdmin) mainItems.splice(1, 0, { label: "Onboarding", href: "/onboarding", icon: FileInput });
 
   const NAV_SECTIONS = [
     {
