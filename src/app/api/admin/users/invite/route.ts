@@ -24,11 +24,20 @@ export async function POST(req: NextRequest) {
     const existingUser = existing?.users?.find((u) => u.email === email);
 
     let emailSent = false;
+    let inviteLink = "";
 
     if (existingUser) {
       // Update role in profiles
       const supabase = createServiceClient();
       await supabase.from("profiles").update({ role }).eq("id", existingUser.id);
+
+      // Generate a magic link for them to sign in
+      const { data: linkData } = await adminClient.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+        options: { redirectTo: appUrl + "/" },
+      });
+      inviteLink = linkData?.properties?.action_link || appUrl + "/login";
 
       // Send notification via Resend
       if (resendApiKey) {
@@ -43,28 +52,55 @@ export async function POST(req: NextRequest) {
               '<img src="' + appUrl + '/logo.png" alt="Call Stream AI" style="height:40px;margin-bottom:24px;" />' +
               '<h2 style="color:#111;">Your access has been updated</h2>' +
               '<p style="color:#555;">Your role on the Call Stream AI Onboarding Platform has been set to <strong>' + role + '</strong>.</p>' +
-              '<a href="' + appUrl + '/login" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#c026d3;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Sign In</a>' +
+              '<a href="' + inviteLink + '" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#c026d3;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Sign In</a>' +
               '</div>',
           }),
         });
         emailSent = res.ok;
       }
-      return NextResponse.json({ success: true, emailSent, userExists: true });
+      return NextResponse.json({ success: true, emailSent, userExists: true, inviteLink });
     }
 
-    // New user: send Supabase invite (goes via Resend SMTP)
-    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: appUrl + "/",
-      data: { role },
+    // New user: generate invite link via Supabase
+    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo: appUrl + "/auth/complete-signup" },
     });
 
     if (inviteError) throw inviteError;
 
-    // After invite created, set role in profile (profile created by trigger)
-    // We'll update it once they accept — but set a pending role via invite data
-    emailSent = true;
+    inviteLink = inviteData?.properties?.action_link || "";
 
-    return NextResponse.json({ success: true, emailSent, userExists: false });
+    // Send invite email via Resend
+    if (resendApiKey && inviteLink) {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + resendApiKey },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [email],
+          subject: "You've been invited to Call Stream AI",
+          html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#fff;">' +
+            '<img src="' + appUrl + '/logo.png" alt="Call Stream AI" style="height:40px;margin-bottom:24px;" />' +
+            '<h2 style="color:#111;">You\'ve been invited</h2>' +
+            '<p style="color:#555;">You\'ve been invited to the Call Stream AI Onboarding Platform. Click below to create your account and get started.</p>' +
+            '<a href="' + inviteLink + '" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#c026d3;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Complete Registration</a>' +
+            '<p style="color:#999;font-size:12px;margin-top:32px;">This link expires in 24 hours. If you didn\'t expect this, you can safely ignore it.</p>' +
+            '</div>',
+        }),
+      });
+      emailSent = res.ok;
+    } else if (!resendApiKey) {
+      // Fallback: use Supabase built-in invite email (goes via Resend SMTP)
+      await adminClient.auth.admin.inviteUserByEmail(email, {
+        redirectTo: appUrl + "/auth/complete-signup",
+        data: { role },
+      });
+      emailSent = true;
+    }
+
+    return NextResponse.json({ success: true, emailSent, userExists: false, inviteLink });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to invite user" }, { status: 500 });
   }
