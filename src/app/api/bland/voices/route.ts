@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-// Verified Bland Curated voices (V2 / V3 only)
-// Source: Bland API docs, changelogs, and persona docs
+// Verified Bland Curated voices (V2 / V3 only) — used when no API key is set
 const DEFAULT_VOICES = [
   { id: "maya",    name: "Maya",    description: "Young American Female" },
   { id: "ryan",    name: "Ryan",    description: "Professional American Male" },
@@ -17,21 +16,49 @@ const DEFAULT_VOICES = [
   { id: "beige",   name: "Beige",   description: "Natural, expressive" },
 ];
 
-function isValidVoice(v: any): boolean {
-  const name = (v.name || "").toLowerCase();
-  const desc = (v.description || "").toLowerCase();
-  const tags: string[] = v.tags || [];
-  // Remove anything with "bland" in name or description
-  if (name.includes("bland") || desc.includes("bland")) return false;
-  // Keep only V2/V3 tagged voices when BLAND_API_KEY is used
-  // If tags present, require v2 or v3 tag (or Bland Curated which implies v2/v3)
-  if (tags.length > 0) {
-    const hasV2 = tags.some((t) => t.toLowerCase().includes("v2"));
-    const hasV3 = tags.some((t) => t.toLowerCase().includes("v3"));
-    const isCurated = tags.some((t) => t.toLowerCase().includes("bland curated"));
-    if (!hasV2 && !hasV3 && !isCurated) return false;
+function cleanVoices(raw: any[]): any[] {
+  const seen = new Set<string>();
+  const result: any[] = [];
+
+  for (const v of raw) {
+    const name: string = v.name || "";
+    const desc: string = v.description || "";
+    const nameLower = name.toLowerCase();
+    const descLower = desc.toLowerCase();
+
+    // Skip: anything with "bland" in name or description
+    if (nameLower.includes("bland") || descLower.includes("bland")) continue;
+
+    // Skip: experimental voices
+    if (nameLower.includes("experimental")) continue;
+
+    // Skip: rcv test clones (e.g. paige-rcv-01)
+    if (nameLower.includes("rcv")) continue;
+
+    // Skip: names with hash IDs in parentheses like "Jamacian (4fcf3e)"
+    if (/\([a-f0-9]{6,}\)/i.test(name)) continue;
+
+    // Skip: descriptions that are just "Voice: <name>" — raw/unformatted
+    if (/^voice:/i.test(desc.trim())) continue;
+
+    // Skip: names that are clearly numeric/internal codes (e.g. "French 1")
+    // Keep French 1 actually — some clients may want multilingual; just deduplicate properly
+
+    // Deduplicate by normalized name (case-insensitive, ignore trailing 'e' variants)
+    // e.g. Paige vs Paigee, Allie vs Alliee, June vs Junee
+    const normalized = nameLower.replace(/ee$/, "e").replace(/ie$/, "y").trim();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+
+    result.push({
+      id: v.voice_id || v.id || nameLower,
+      name,
+      description: desc || null,
+      preview_url: v.preview_url || null,
+    });
   }
-  return true;
+
+  return result;
 }
 
 export async function GET() {
@@ -46,17 +73,10 @@ export async function GET() {
       headers: { Authorization: apiKey },
     });
     const data = await res.json();
-    const raw: any[] = Array.isArray(data.voices) ? data.voices : (Array.isArray(data) ? data : []);
+    const raw: any[] = Array.isArray(data.voices) ? data.voices
+      : Array.isArray(data) ? data : [];
 
-    const voices = raw
-      .filter(isValidVoice)
-      .map((v: any) => ({
-        id: v.voice_id || v.id || String(v.name).toLowerCase(),
-        name: v.name || "Unknown",
-        description: v.description || null,
-        preview_url: v.preview_url || null,
-      }));
-
+    const voices = cleanVoices(raw);
     return NextResponse.json({ voices: voices.length > 0 ? voices : DEFAULT_VOICES });
   } catch {
     return NextResponse.json({ voices: DEFAULT_VOICES });
