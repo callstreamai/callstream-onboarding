@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-// Verified Bland Curated voices (V2/V3) — fallback when no API key
+// Fallback curated voice list when API key is absent or returns nothing
 const DEFAULT_VOICES = [
   { id: "maya",    name: "Maya",    description: "Young American Female" },
   { id: "ryan",    name: "Ryan",    description: "Professional American Male" },
@@ -10,16 +10,23 @@ const DEFAULT_VOICES = [
   { id: "june",    name: "June",    description: "Warm American Female" },
   { id: "karl",    name: "Karl",    description: "Steady American Male" },
   { id: "estella", name: "Estella", description: "Confident American Female" },
-  { id: "karen",   name: "Karen",   description: "American Female" },
   { id: "willow",  name: "Willow",  description: "Soft American Female" },
   { id: "maeve",   name: "Maeve",   description: "Expressive American Female" },
-  { id: "beige",   name: "Beige",   description: "Natural, expressive" },
 ];
 
 function isCurated(v: any): boolean {
   const tags: string[] = v.tags || [];
-  // Only show voices explicitly tagged "Bland Curated" — filters out all custom/cloned account voices
   return tags.some((t: string) => t.toLowerCase() === "bland curated");
+}
+
+function isTest(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes("test") || lower.startsWith("test ");
+}
+
+function cleanName(name: string): string {
+  // Strip "- Bland" suffix and trim whitespace
+  return name.replace(/\s*-\s*bland\s*$/i, "").trim();
 }
 
 export async function GET() {
@@ -39,12 +46,14 @@ export async function GET() {
 
     const voices = raw
       .filter(isCurated)
+      .filter((v: any) => !isTest(v.name || ""))
       .map((v: any) => ({
         id: v.voice_id || v.id || String(v.name).toLowerCase(),
-        name: v.name || "Unknown",
+        name: cleanName(v.name || "Unknown"),
         description: v.description || null,
         preview_url: v.preview_url || null,
-      }));
+      }))
+      .sort((a: any, b: any) => a.name.localeCompare(b.name));
 
     return NextResponse.json({ voices: voices.length > 0 ? voices : DEFAULT_VOICES });
   } catch {
