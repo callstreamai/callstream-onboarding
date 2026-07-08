@@ -55,11 +55,13 @@ export default function MySubmissionsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">My Submissions</h1>
-        <Link href="/onboarding" className="cs-btn-primary text-sm">
-          <FileInput size={16} />
-          New Onboarding
-        </Link>
+        <h1 className="text-2xl font-semibold">{isAdmin ? "My Submissions" : "My Projects"}</h1>
+        {isAdmin && (
+          <Link href="/onboarding" className="cs-btn-primary text-sm">
+            <FileInput size={16} />
+            New Onboarding
+          </Link>
+        )}
       </div>
 
       {loading ? (
@@ -67,10 +69,12 @@ export default function MySubmissionsPage() {
       ) : jobs.length === 0 ? (
         <div className="cs-card p-12 text-center">
           <FolderOpen size={40} className="mx-auto text-cs-text-muted mb-3" />
-          <p className="text-cs-text-secondary">No submissions yet</p>
-          <Link href="/onboarding" className="cs-btn-primary text-sm mt-4 inline-flex">
-            Start Onboarding
-          </Link>
+          <p className="text-cs-text-secondary">{isAdmin ? "No submissions yet" : "No projects assigned yet"}</p>
+          {isAdmin && (
+            <Link href="/onboarding" className="cs-btn-primary text-sm mt-4 inline-flex">
+              Start Onboarding
+            </Link>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
