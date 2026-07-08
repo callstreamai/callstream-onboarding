@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: { accountId: s
 
     // Get contacts
     const { data: contacts } = await supabase
-      .from("account_contacts")
+      .from("contacts")
       .select("*")
       .eq("account_id", accountId)
       .order("is_primary", { ascending: false });
