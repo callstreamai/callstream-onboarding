@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
         cookies: {
           getAll() { return cookieStore.getAll(); },
           setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-            try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch {}
+            try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch (_e) {}
           },
         },
       }
@@ -40,13 +40,24 @@ export async function GET(req: NextRequest) {
       .select("*")
       .order("created_at", { ascending: false });
 
-    // "My Submissions" always filters by user. 
-    // "All Submissions" (admin + ?all=true) shows everything.
     if (showAll && isAdmin) {
       // Admin viewing all — no filter
     } else if (user) {
-      // Everyone else (including admins on "My Submissions") sees only their own
-      query = query.eq("created_by", user.id);
+      // Get job_ids where this user is a project member (invited)
+      const { data: memberships } = await supabase
+        .from("project_members")
+        .select("job_id")
+        .eq("user_id", user.id);
+
+      const memberJobIds = (memberships ?? []).map((m: any) => m.job_id).filter(Boolean);
+
+      if (memberJobIds.length > 0) {
+        // Show jobs they created OR were invited to
+        query = query.or(`created_by.eq.${user.id},id.in.(${memberJobIds.join(",")})`);
+      } else {
+        // No memberships — just their own
+        query = query.eq("created_by", user.id);
+      }
     }
 
     if (statusFilter) {
@@ -58,7 +69,7 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({ jobs: jobs || [] });
-  } catch (err) {
+  } catch (_err) {
     return NextResponse.json({ error: "Failed to fetch jobs" }, { status: 500 });
   }
 }
