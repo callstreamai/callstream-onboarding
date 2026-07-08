@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-// Verified Bland Curated voices (V2 / V3 only) — used when no API key is set
+// Verified Bland Curated voices (V2/V3) — fallback when no API key
 const DEFAULT_VOICES = [
   { id: "maya",    name: "Maya",    description: "Young American Female" },
   { id: "ryan",    name: "Ryan",    description: "Professional American Male" },
@@ -16,49 +16,10 @@ const DEFAULT_VOICES = [
   { id: "beige",   name: "Beige",   description: "Natural, expressive" },
 ];
 
-function cleanVoices(raw: any[]): any[] {
-  const seen = new Set<string>();
-  const result: any[] = [];
-
-  for (const v of raw) {
-    const name: string = v.name || "";
-    const desc: string = v.description || "";
-    const nameLower = name.toLowerCase();
-    const descLower = desc.toLowerCase();
-
-    // Skip: anything with "bland" in name or description
-    if (nameLower.includes("bland") || descLower.includes("bland")) continue;
-
-    // Skip: experimental voices
-    if (nameLower.includes("experimental")) continue;
-
-    // Skip: rcv test clones (e.g. paige-rcv-01)
-    if (nameLower.includes("rcv")) continue;
-
-    // Skip: names with hash IDs in parentheses like "Jamacian (4fcf3e)"
-    if (/\([a-f0-9]{6,}\)/i.test(name)) continue;
-
-    // Skip: descriptions that are just "Voice: <name>" — raw/unformatted
-    if (/^voice:/i.test(desc.trim())) continue;
-
-    // Skip: names that are clearly numeric/internal codes (e.g. "French 1")
-    // Keep French 1 actually — some clients may want multilingual; just deduplicate properly
-
-    // Deduplicate by normalized name (case-insensitive, ignore trailing 'e' variants)
-    // e.g. Paige vs Paigee, Allie vs Alliee, June vs Junee
-    const normalized = nameLower.replace(/ee$/, "e").replace(/ie$/, "y").trim();
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-
-    result.push({
-      id: v.voice_id || v.id || nameLower,
-      name,
-      description: desc || null,
-      preview_url: v.preview_url || null,
-    });
-  }
-
-  return result;
+function isCurated(v: any): boolean {
+  const tags: string[] = v.tags || [];
+  // Only show voices explicitly tagged "Bland Curated" — filters out all custom/cloned account voices
+  return tags.some((t: string) => t.toLowerCase() === "bland curated");
 }
 
 export async function GET() {
@@ -76,7 +37,15 @@ export async function GET() {
     const raw: any[] = Array.isArray(data.voices) ? data.voices
       : Array.isArray(data) ? data : [];
 
-    const voices = cleanVoices(raw);
+    const voices = raw
+      .filter(isCurated)
+      .map((v: any) => ({
+        id: v.voice_id || v.id || String(v.name).toLowerCase(),
+        name: v.name || "Unknown",
+        description: v.description || null,
+        preview_url: v.preview_url || null,
+      }));
+
     return NextResponse.json({ voices: voices.length > 0 ? voices : DEFAULT_VOICES });
   } catch {
     return NextResponse.json({ voices: DEFAULT_VOICES });
