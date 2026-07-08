@@ -12,15 +12,18 @@ export function Sidebar() {
   const pathname = usePathname();
   const { profile, isAdmin, signOut } = useAuth();
 
+  const submissionsLabel = isAdmin ? "My Submissions" : "My Projects";
+  const mainItems = [
+    { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    ...(isAdmin ? [{ label: "Onboarding", href: "/onboarding", icon: FileInput }] : []),
+    { label: submissionsLabel, href: "/submissions", icon: FolderOpen },
+    { label: "Voice Preview", href: "/voice-preview", icon: Mic2 },
+  ];
+
   const NAV_SECTIONS = [
     {
       label: "MAIN",
-      items: [
-        { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        ...(isAdmin ? [{ label: "Onboarding", href: "/onboarding", icon: FileInput }] : []),
-        { label: isAdmin ? "My Submissions" : "My Projects", href: "/submissions", icon: FolderOpen },
-        { label: "Voice Preview", href: "/voice-preview", icon: Mic2 },
-      ],
+      items: mainItems,
     },
     ...(isAdmin
       ? [
