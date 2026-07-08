@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import JobTabs from "@/components/project/JobTabs";
+import CommentFeed from "@/components/project/CommentFeed";
 import {
   Folder, FileText, Upload, Plus, Users, Send, Copy,
   Building, Home, UtensilsCrossed, Calendar, Settings,
@@ -62,6 +63,8 @@ export default function WorkspacePage() {
 
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentUsers, setCommentUsers] = useState<any[]>([]);
   const [activeSpace, setActiveSpace] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -104,9 +107,19 @@ export default function WorkspacePage() {
     setLoading(false);
   }, [jobId, user?.id, isAdmin]);
 
+  const loadComments = useCallback(async () => {
+    const res = await fetch("/api/jobs/" + jobId + "/comments");
+    if (res.ok) {
+      const data = await res.json();
+      setComments(data.comments || []);
+      setCommentUsers(data.users || []);
+    }
+  }, [jobId]);
+
   useEffect(() => {
     loadWorkspace();
-  }, [loadWorkspace]);
+    loadComments();
+  }, [loadWorkspace, loadComments]);
 
   async function handleInvite() {
     if (!inviteEmail.trim()) return;
@@ -361,6 +374,18 @@ export default function WorkspacePage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Comments */}
+      <div className="mt-8">
+        <h3 className="text-sm font-semibold text-cs-text-primary mb-4">Team Comments</h3>
+        <CommentFeed
+          comments={comments}
+          users={commentUsers}
+          currentUser={user ? { id: user.id, email: user.email || "", full_name: user.email || "", role: isAdmin ? "admin" : "member" } : null}
+          jobId={jobId}
+          onUpdate={loadComments}
+        />
       </div>
     </div>
   );
