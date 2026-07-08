@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
+export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+  try {
+    const supabase = createServiceClient();
+
+    const { data: comments, error } = await supabase
+      .from("project_comments")
+      .select("*, profiles:author_id(full_name, email, role)")
+      .eq("job_id", params.jobId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+
+    const enriched = (comments || []).map((c: any) => ({
+      ...c,
+      author_name: c.profiles?.full_name || null,
+      author_email: c.profiles?.email || null,
+    }));
+
+    const { data: members } = await supabase
+      .from("project_members")
+      .select("user_id, profiles:user_id(id, full_name, email, role)")
+      .eq("job_id", params.jobId);
+
+    const users = (members || []).map((m: any) => m.profiles).filter(Boolean);
+
+    return NextResponse.json({ comments: enriched, users });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest, { params }: { params: { jobId: string } }) {
   try {
     const supabase = createServiceClient();
