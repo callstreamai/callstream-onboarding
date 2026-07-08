@@ -17,9 +17,9 @@ export function Sidebar() {
       label: "MAIN",
       items: [
         { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Onboarding", href: "/onboarding", icon: FileInput },
-        { label: "My Submissions", href: "/submissions", icon: FolderOpen },
-        { label: "Voice Preview", href: "/review", icon: Mic2 },
+        ...(isAdmin ? [{ label: "Onboarding", href: "/onboarding", icon: FileInput }] : []),
+        { label: isAdmin ? "My Submissions" : "My Projects", href: "/submissions", icon: FolderOpen },
+        { label: "Voice Preview", href: "/voice-preview", icon: Mic2 },
       ],
     },
     ...(isAdmin
