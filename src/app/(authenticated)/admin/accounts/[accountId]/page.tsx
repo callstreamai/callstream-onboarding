@@ -290,13 +290,33 @@ export default function AccountDetailPage() {
         ) : (
           <div className="space-y-2">
             {jobs.map((job: any) => (
-              <div key={job.id} className="bg-cs-surface border border-cs-border rounded-md p-3">
+              <div key={job.id} className={"bg-cs-surface border rounded-md p-3 " + (job._unlinked ? "border-amber-500/30" : "border-cs-border")}>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-cs-text-primary">{job.property_url}</p>
+                  <div className="flex-1 min-w-0 mr-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-cs-text-primary truncate">{job.property_name || job.property_url}</p>
+                      {job._unlinked && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 flex-shrink-0">Not linked</span>
+                      )}
+                    </div>
                     <p className="text-xs text-cs-text-muted">{job.status.replace(/_/g, " ")} · {new Date(job.created_at).toLocaleDateString()}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
+                    {job._unlinked && (
+                      <button
+                        onClick={async () => {
+                          await fetch("/api/admin/accounts/" + accountId + "/", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ jobId: job.id }),
+                          });
+                          fetchData();
+                        }}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"
+                      >
+                        <Link2 size={12} /> Link
+                      </button>
+                    )}
                     <button
                       onClick={() => copyToClipboard(appUrl + "/onboarding/" + job.id + "/workspace", "job-" + job.id)}
                       className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-cs-accent-purple/10 text-cs-accent-purple hover:bg-cs-accent-purple/20 transition"
