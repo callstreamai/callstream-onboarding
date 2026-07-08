@@ -1,9 +1,8 @@
 "use client";
 
-import { useParams, usePathname } from "next/navigation";
-import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import { Activity, Kanban, ClipboardCheck, FolderOpen, Play, Loader2, Volume2, Mic } from "lucide-react";
+import { Play, Loader2, Volume2, Mic } from "lucide-react";
 
 interface BlandVoice {
   id: string;
@@ -15,7 +14,6 @@ interface BlandVoice {
 export default function ReviewPage() {
   const params = useParams();
   const jobId = params.jobId as string;
-  const pathname = usePathname();
 
   const [text, setText] = useState("");
   const [voices, setVoices] = useState<BlandVoice[]>([]);
@@ -30,13 +28,8 @@ export default function ReviewPage() {
     "Your reservation has been confirmed for this evening.",
     "I can connect you with our front desk right away.",
     "Welcome! Is this your first time staying with us?",
-  ];
-
-  const tabs = [
-    { label: "Status", href: "/onboarding/" + jobId + "/status", icon: Activity },
-    { label: "Workspace", href: "/onboarding/" + jobId + "/workspace", icon: FolderOpen },
-    { label: "Project", href: "/onboarding/" + jobId + "/project", icon: Kanban },
-    { label: "Review", href: "/onboarding/" + jobId + "/review", icon: ClipboardCheck },
+    "I will transfer you to housekeeping right away.",
+    "Your room is ready — shall I send up a welcome amenity?",
   ];
 
   useEffect(() => {
@@ -106,121 +99,117 @@ export default function ReviewPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-1 border-b border-cs-border mb-6">
-        {tabs.map((t) => {
-          const active = pathname === t.href;
-          return (
-            <Link
-              key={t.href}
-              href={t.href}
-              className={
-                "flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 -mb-px transition " +
-                (active
-                  ? "border-cs-accent-blue text-cs-accent-blue"
-                  : "border-transparent text-cs-text-muted hover:text-cs-text-secondary")
-              }
-            >
-              <t.icon size={14} />
-              {t.label}
-            </Link>
-          );
-        })}
+    <div className="max-w-4xl">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-cs-accent-blue/15 flex items-center justify-center">
+            <Mic size={18} className="text-cs-accent-blue" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-cs-text-primary">Voice Preview</h1>
+            <p className="text-xs text-cs-text-muted mt-0.5">Type anything and hear how your Callstream AI voice sounds.</p>
+          </div>
+        </div>
       </div>
 
-      <div className="max-w-3xl">
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <Mic size={18} className="text-cs-accent-blue" />
-            <h2 className="text-lg font-semibold text-cs-text-primary">Voice Preview</h2>
+      {/* Text input */}
+      <div className="cs-card p-5 mb-4">
+        <label className="cs-label block mb-2">YOUR TEXT</label>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type what you want to hear..."
+          className="cs-input h-24 resize-none w-full mb-3"
+          maxLength={300}
+        />
+        <div className="flex items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {SAMPLE_PROMPTS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setText(p)}
+                className="text-[10px] px-2.5 py-1 rounded-full bg-cs-border/60 text-cs-text-muted hover:text-cs-text-secondary hover:bg-cs-border transition"
+              >
+                {p.length > 40 ? p.slice(0, 40) + "..." : p}
+              </button>
+            ))}
           </div>
-          <p className="text-sm text-cs-text-muted">Type anything and hear how your Callstream AI voice sounds. Pick a voice and press play.</p>
+          <span className="text-[10px] text-cs-text-muted ml-3 flex-shrink-0">{text.length}/300</span>
+        </div>
+      </div>
+
+      {/* Voice grid */}
+      <div className="cs-card p-5 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <label className="cs-label">CHOOSE A VOICE</label>
+          {selectedVoice && (
+            <span className="text-[10px] text-cs-accent-blue">
+              {voices.find((v) => v.id === selectedVoice)?.name} selected
+            </span>
+          )}
         </div>
 
-        <div className="cs-card p-5 mb-4">
-          <label className="cs-label block mb-2">YOUR TEXT</label>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Type what you want to hear..."
-            className="cs-input h-24 resize-none w-full mb-3"
-            maxLength={300}
-          />
-          <div className="flex items-center justify-between">
-            <div className="flex flex-wrap gap-2">
-              {SAMPLE_PROMPTS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setText(p)}
-                  className="text-[10px] px-2 py-1 rounded bg-cs-border/50 text-cs-text-muted hover:text-cs-text-secondary hover:bg-cs-border transition"
-                >
-                  {p.length > 38 ? p.slice(0, 38) + "..." : p}
-                </button>
-              ))}
-            </div>
-            <span className="text-[10px] text-cs-text-muted">{text.length}/300</span>
+        {loadingVoices ? (
+          <div className="flex items-center gap-2 text-cs-text-muted text-sm py-6">
+            <Loader2 size={14} className="animate-spin" />
+            Loading voices...
           </div>
-        </div>
-
-        <div className="cs-card p-5 mb-4">
-          <label className="cs-label block mb-3">CHOOSE A VOICE</label>
-          {loadingVoices ? (
-            <div className="flex items-center gap-2 text-cs-text-muted text-sm py-4">
-              <Loader2 size={14} className="animate-spin" />
-              Loading voices...
-            </div>
-          ) : voices.length === 0 ? (
-            <p className="text-sm text-cs-text-muted py-4">
-              No voices available. Contact your admin to configure BLAND_API_KEY.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {voices.map((v) => (
+        ) : voices.length === 0 ? (
+          <p className="text-sm text-cs-text-muted py-4">No voices available. Contact your admin to configure BLAND_API_KEY.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {voices.map((v) => {
+              const isSelected = selectedVoice === v.id;
+              const isPlaying = activePreview === v.id && loading;
+              return (
                 <button
                   key={v.id}
                   onClick={() => playVoice(v.id, v.preview_url)}
                   className={
                     "flex items-center justify-between p-3 rounded-lg border text-left transition " +
-                    (selectedVoice === v.id
+                    (isSelected
                       ? "border-cs-accent-blue bg-cs-accent-blue/10"
-                      : "border-cs-border hover:border-cs-border/60 bg-cs-bg")
+                      : "border-cs-border hover:border-cs-border/80 bg-cs-bg hover:bg-cs-card")
                   }
                 >
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-cs-text-primary">{v.name}</p>
+                  <div className="min-w-0 mr-2">
+                    <p className={"text-xs font-medium truncate " + (isSelected ? "text-cs-accent-blue" : "text-cs-text-primary")}>
+                      {v.name}
+                    </p>
                     {v.description && (
                       <p className="text-[10px] text-cs-text-muted mt-0.5 truncate">{v.description}</p>
                     )}
                   </div>
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ml-2 bg-cs-border/50">
-                    {activePreview === v.id && loading
+                  <div className={
+                    "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition " +
+                    (isSelected ? "bg-cs-accent-blue/20" : "bg-cs-border/50")
+                  }>
+                    {isPlaying
                       ? <Loader2 size={10} className="animate-spin text-cs-accent-blue" />
-                      : <Play size={10} className="text-cs-text-muted" />
+                      : <Play size={10} className={isSelected ? "text-cs-accent-blue" : "text-cs-text-muted"} />
                     }
                   </div>
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={handleHearIt}
-          disabled={!text.trim() || !selectedVoice || loading}
-          className="cs-btn-primary w-full"
-        >
-          {loading
-            ? <><Loader2 size={14} className="animate-spin" /> Generating audio...</>
-            : <><Volume2 size={14} /> Hear it</>
-          }
-        </button>
-
-        <audio
-          ref={audioRef}
-          onEnded={() => { setActivePreview(null); }}
-          className="hidden"
-        />
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Hear it button */}
+      <button
+        onClick={handleHearIt}
+        disabled={!text.trim() || !selectedVoice || loading}
+        className="cs-btn-primary w-full py-3 text-sm"
+      >
+        {loading
+          ? <><Loader2 size={14} className="animate-spin" /> Generating audio...</>
+          : <><Volume2 size={15} /> Hear it</>
+        }
+      </button>
+
+      <audio ref={audioRef} onEnded={() => setActivePreview(null)} className="hidden" />
     </div>
   );
 }
