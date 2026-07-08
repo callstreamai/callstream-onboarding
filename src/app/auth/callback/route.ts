@@ -6,8 +6,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
+  const type = searchParams.get("type") ?? "";
 
-  // Use the configured app URL, not the request origin (which may be localhost on Render)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://launch.callstreamai.com";
 
   if (code) {
@@ -17,9 +17,7 @@ export async function GET(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
+          getAll() { return cookieStore.getAll(); },
           setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
             try {
               cookiesToSet.forEach(({ name, value, options }) =>
@@ -31,8 +29,18 @@ export async function GET(request: Request) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
     if (!error) {
+      // If this is an invite or the user has no password set, send to complete-signup
+      const isInvite = type === "invite" || next.includes("complete-signup");
+      const hasNoPassword = data?.user?.app_metadata?.provider === "email" &&
+        !data?.user?.last_sign_in_at && data?.user?.created_at === data?.user?.updated_at;
+
+      if (isInvite || hasNoPassword) {
+        return NextResponse.redirect(new URL("/auth/complete-signup", appUrl));
+      }
+
       return NextResponse.redirect(new URL(next, appUrl));
     }
   }
