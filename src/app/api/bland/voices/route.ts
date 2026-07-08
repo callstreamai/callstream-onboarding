@@ -52,7 +52,6 @@ export async function GET() {
   try {
     const res = await fetch("https://api.bland.ai/v1/voices", {
       headers: { Authorization: apiKey },
-      next: { revalidate: 3600 }, // cache 1 hour
     });
     const data = await res.json();
     const raw: any[] = Array.isArray(data.voices) ? data.voices
@@ -88,7 +87,7 @@ export async function GET() {
       .map(({ id, name, description, preview_url }) => ({ id, name, description, preview_url }));
 
     return NextResponse.json({ voices: voices.length > 0 ? voices : DEFAULT_VOICES });
-  } catch {
+  } catch (_e) {
     return NextResponse.json({ voices: DEFAULT_VOICES });
   }
 }
