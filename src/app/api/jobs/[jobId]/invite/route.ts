@@ -38,6 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
     let inviteUrl = "";
 
     if (existingUser) {
+      // ── Existing user: link to project immediately ──
       await supabase.from("project_members").upsert(
         { job_id: params.jobId, user_id: existingUser.id, role: "member", department: department || null },
         { onConflict: "job_id,user_id" }
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
         }
       }
     } else {
+      // ── New user: invite then immediately link to project ──
       const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         redirectTo: appUrl + "/onboarding/" + params.jobId + "/workspace",
         data: { job_id: params.jobId, department: department || null },
@@ -107,6 +109,17 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
             emailSent = emailRes.ok;
           }
         }
+      }
+
+      // ── CRITICAL FIX: link the newly-created user to the project immediately ──
+      // inviteUserByEmail creates the auth user right away; look them up and insert project_members
+      const { data: refreshedUsers } = await adminClient.auth.admin.listUsers();
+      const newUser = refreshedUsers?.users?.find((u) => u.email === email);
+      if (newUser) {
+        await supabase.from("project_members").upsert(
+          { job_id: params.jobId, user_id: newUser.id, role: "member", department: department || null },
+          { onConflict: "job_id,user_id" }
+        );
       }
     }
 
