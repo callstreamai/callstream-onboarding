@@ -437,23 +437,48 @@ export default function WorkspacePage() {
 
             {/* ── Links / Bookmarks section ── */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Globe size={14} className="text-cs-accent-blue" />
-                  <h4 className="text-xs font-medium text-cs-text-primary">Links</h4>
-                  {(spaceLinks[active.id] || []).length > 0 && (
-                    <span className="text-[10px] text-cs-text-muted">
-                      {(spaceLinks[active.id] || []).length}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowAddLink(!showAddLink)}
-                  className="flex items-center gap-1 text-[10px] text-cs-accent-blue hover:text-cs-accent-blue/80 transition"
-                >
-                  <Plus size={11} /> Add link
-                </button>
+              <div className="flex items-center gap-2 mb-3">
+                <Globe size={14} className="text-cs-accent-blue" />
+                <h4 className="text-xs font-medium text-cs-text-primary">Links</h4>
+                {(spaceLinks[active.id] || []).length > 0 && (
+                  <span className="text-[10px] text-cs-text-muted">
+                    {(spaceLinks[active.id] || []).length}
+                  </span>
+                )}
               </div>
+
+              {/* Links list */}
+              {(spaceLinks[active.id] || []).length > 0 ? (
+                <div className="space-y-1.5 mb-3">
+                  {(spaceLinks[active.id] || []).map((link) => (
+                    <div key={link.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md group">
+                      <div className="w-7 h-7 rounded-md bg-cs-card border border-cs-border flex items-center justify-center flex-shrink-0">
+                        <Globe size={13} className="text-cs-text-muted" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-cs-text-primary font-medium truncate">{link.title}</p>
+                        <p className="text-[10px] text-cs-text-muted truncate">{link.url}</p>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <a href={link.url} target="_blank" rel="noreferrer"
+                          className="text-cs-text-muted hover:text-cs-accent-blue p-1 rounded">
+                          <ExternalLink size={12} />
+                        </a>
+                        <button
+                          onClick={() => handleDeleteLink(active.id, link.id)}
+                          className="text-cs-text-muted hover:text-cs-accent-red p-1 rounded"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-cs-text-muted text-center py-3 mb-3">
+                  No links added yet. Add URLs important to this property.
+                </p>
+              )}
 
               {/* Add link form */}
               {showAddLink && (
@@ -492,37 +517,14 @@ export default function WorkspacePage() {
                 </div>
               )}
 
-              {/* Links list */}
-              {(spaceLinks[active.id] || []).length > 0 ? (
-                <div className="space-y-1.5">
-                  {(spaceLinks[active.id] || []).map((link) => (
-                    <div key={link.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md group">
-                      <div className="w-7 h-7 rounded-md bg-cs-card border border-cs-border flex items-center justify-center flex-shrink-0">
-                        <Globe size={13} className="text-cs-text-muted" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-cs-text-primary font-medium truncate">{link.title}</p>
-                        <p className="text-[10px] text-cs-text-muted truncate">{link.url}</p>
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                        <a href={link.url} target="_blank" rel="noreferrer"
-                          className="text-cs-text-muted hover:text-cs-accent-blue p-1 rounded">
-                          <ExternalLink size={12} />
-                        </a>
-                        <button
-                          onClick={() => handleDeleteLink(active.id, link.id)}
-                          className="text-cs-text-muted hover:text-cs-accent-red p-1 rounded"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-cs-text-muted text-center py-3">
-                  No links added yet. Add URLs important to this property.
-                </p>
+              {/* + Add link button at bottom */}
+              {!showAddLink && (
+                <button
+                  onClick={() => setShowAddLink(true)}
+                  className="flex items-center gap-1.5 text-xs text-cs-text-muted hover:text-cs-accent-blue transition w-full py-1.5 border border-dashed border-cs-border rounded-md justify-center hover:border-cs-accent-blue/50"
+                >
+                  <Plus size={12} /> Add link
+                </button>
               )}
             </div>
           </div>
