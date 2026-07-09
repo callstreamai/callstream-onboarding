@@ -125,7 +125,7 @@ export default function WorkspacePage() {
     const res = await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/links");
     if (res.ok) {
       const data = await res.json();
-      setSpaceLinks((prev) => ({ ...prev, [spaceId]: data.links || [] }));
+      setSpaceLinks((prev: Record<string, SpaceLink[]>) => ({ ...prev, [spaceId]: data.links || [] }));
     }
   }, [jobId]);
 
@@ -433,7 +433,7 @@ export default function WorkspacePage() {
             ) : (
               <p className="text-xs text-cs-text-muted text-center py-4">No documents yet. Upload files to get started.</p>
             )}
-          </div>
+
 
             {/* ── Links / Bookmarks section ── */}
             <div>
