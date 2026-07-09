@@ -141,7 +141,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     loadWorkspace();
     loadComments();
-  }, [loadWorkspace, loadComments]);
+  }, [loadWorkspace, loadComments, loadLinks]);
 
   async function handleInvite() {
     if (!inviteEmail.trim()) return;
@@ -231,11 +231,6 @@ export default function WorkspacePage() {
       method: "DELETE",
     });
     loadLinks(spaceId);
-  }
-
-  function getFileIcon(fileType: string) {
-    if (fileType.startsWith("video/")) return Video;
-    return FileText;
   }
 
   function copyText(text: string, id: string) {
@@ -420,7 +415,7 @@ export default function WorkspacePage() {
               <div className="space-y-2">
                 {active.space_documents.map((doc) => (
                   <div key={doc.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md">
-                    {(() => { const Icon = getFileIcon(doc.file_type); return <Icon size={14} className="text-cs-text-muted flex-shrink-0" />; })()}
+                    {doc.file_type.startsWith("video/") ? <Video size={14} className="text-cs-text-muted flex-shrink-0" /> : <FileText size={14} className="text-cs-text-muted flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-cs-text-primary truncate">{doc.name}</p>
                       <p className="text-[10px] text-cs-text-muted">
