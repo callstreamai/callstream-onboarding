@@ -10,6 +10,7 @@ import {
   Folder, FileText, Upload, Plus, Users, Send, Copy,
   Building, Home, UtensilsCrossed, Calendar, Settings,
   BookOpen, Megaphone, CheckCircle2, Clock, X, Check,
+  Video, Link2, Globe, Trash2, ExternalLink,
 } from "lucide-react";
 
 interface SpaceDoc {
@@ -28,6 +29,14 @@ interface Space {
   description: string | null;
   icon: string;
   space_documents: SpaceDoc[];
+}
+
+interface SpaceLink {
+  id: string;
+  title: string;
+  url: string;
+  description: string | null;
+  created_at: string;
 }
 
 interface Invitation {
@@ -76,6 +85,11 @@ export default function WorkspacePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [spaceLinks, setSpaceLinks] = useState<Record<string, SpaceLink[]>>({});
+  const [showAddLink, setShowAddLink] = useState(false);
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [newLinkTitle, setNewLinkTitle] = useState("");
+  const [addingLink, setAddingLink] = useState(false);
 
   const loadWorkspace = useCallback(async () => {
     const res = await fetch("/api/jobs/" + jobId + "/spaces");
@@ -106,6 +120,14 @@ export default function WorkspacePage() {
 
     setLoading(false);
   }, [jobId, user?.id, isAdmin]);
+
+  const loadLinks = useCallback(async (spaceId: string) => {
+    const res = await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/links");
+    if (res.ok) {
+      const data = await res.json();
+      setSpaceLinks((prev) => ({ ...prev, [spaceId]: data.links || [] }));
+    }
+  }, [jobId]);
 
   const loadComments = useCallback(async () => {
     const res = await fetch("/api/jobs/" + jobId + "/comments");
@@ -181,6 +203,39 @@ export default function WorkspacePage() {
 
     setUploading(false);
     loadWorkspace();
+  }
+
+  async function handleAddLink(spaceId: string) {
+    if (!newLinkUrl.trim() || !newLinkTitle.trim()) return;
+    setAddingLink(true);
+    let url = newLinkUrl.trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
+    }
+    const res = await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newLinkTitle, url, userId: user?.id }),
+    });
+    if (res.ok) {
+      setNewLinkUrl("");
+      setNewLinkTitle("");
+      setShowAddLink(false);
+      loadLinks(spaceId);
+    }
+    setAddingLink(false);
+  }
+
+  async function handleDeleteLink(spaceId: string, linkId: string) {
+    await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/links?id=" + linkId, {
+      method: "DELETE",
+    });
+    loadLinks(spaceId);
+  }
+
+  function getFileIcon(fileType: string) {
+    if (fileType.startsWith("video/")) return Video;
+    return FileText;
   }
 
   function copyText(text: string, id: string) {
@@ -296,7 +351,11 @@ export default function WorkspacePage() {
             return (
               <button
                 key={space.id}
-                onClick={() => setActiveSpace(activeSpace === space.id ? null : space.id)}
+                onClick={() => {
+                  const nextActive = activeSpace === space.id ? null : space.id;
+                  setActiveSpace(nextActive);
+                  if (nextActive) { loadLinks(nextActive); setShowAddLink(false); }
+                }}
                 className={
                   "cs-card p-4 text-left transition hover:border-cs-accent-blue/50 " +
                   (activeSpace === space.id ? "border-cs-accent-blue" : "")
@@ -306,11 +365,18 @@ export default function WorkspacePage() {
                   <div className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center">
                     <IconComp size={16} className="text-cs-accent-blue" />
                   </div>
-                  {docCount > 0 && (
-                    <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
-                      {docCount} file{docCount !== 1 ? "s" : ""}
-                    </span>
-                  )}
+                  <div className="flex gap-1">
+                    {docCount > 0 && (
+                      <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
+                        {docCount} file{docCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {(spaceLinks[space.id] || []).length > 0 && (
+                      <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                        <Globe size={9} />{(spaceLinks[space.id] || []).length}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <h3 className="text-sm font-medium text-cs-text-primary">{space.name}</h3>
                 {space.description && (
@@ -337,7 +403,7 @@ export default function WorkspacePage() {
                 type="file"
                 multiple
                 className="hidden"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.avi,.webm,.mkv,.m4v"
                 onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleFileUpload(active.id, e.target.files); }}
               />
               <Upload size={20} className="mx-auto text-cs-text-muted mb-2" />
@@ -345,7 +411,7 @@ export default function WorkspacePage() {
                 {uploading ? "Uploading..." : "Drop files here or click to upload"}
               </p>
               <p className="text-[10px] text-cs-text-muted mt-1">
-                PDFs, Word docs, images, spreadsheets — any property document
+                PDFs, Word docs, images, spreadsheets, videos — any property document
               </p>
             </label>
 
@@ -354,7 +420,7 @@ export default function WorkspacePage() {
               <div className="space-y-2">
                 {active.space_documents.map((doc) => (
                   <div key={doc.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md">
-                    <FileText size={14} className="text-cs-text-muted flex-shrink-0" />
+                    {(() => { const Icon = getFileIcon(doc.file_type); return <Icon size={14} className="text-cs-text-muted flex-shrink-0" />; })()}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-cs-text-primary truncate">{doc.name}</p>
                       <p className="text-[10px] text-cs-text-muted">
@@ -372,6 +438,98 @@ export default function WorkspacePage() {
             ) : (
               <p className="text-xs text-cs-text-muted text-center py-4">No documents yet. Upload files to get started.</p>
             )}
+          </div>
+
+            {/* ── Links / Bookmarks section ── */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Globe size={14} className="text-cs-accent-blue" />
+                  <h4 className="text-xs font-medium text-cs-text-primary">Links</h4>
+                  {(spaceLinks[active.id] || []).length > 0 && (
+                    <span className="text-[10px] text-cs-text-muted">
+                      {(spaceLinks[active.id] || []).length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowAddLink(!showAddLink)}
+                  className="flex items-center gap-1 text-[10px] text-cs-accent-blue hover:text-cs-accent-blue/80 transition"
+                >
+                  <Plus size={11} /> Add link
+                </button>
+              </div>
+
+              {/* Add link form */}
+              {showAddLink && (
+                <div className="bg-cs-bg border border-cs-border rounded-lg p-3 mb-3 space-y-2">
+                  <input
+                    type="text"
+                    value={newLinkTitle}
+                    onChange={(e) => setNewLinkTitle(e.target.value)}
+                    placeholder="Link title (e.g. Booking Engine)"
+                    className="cs-input text-xs w-full"
+                    autoFocus
+                  />
+                  <input
+                    type="url"
+                    value={newLinkUrl}
+                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="cs-input text-xs w-full"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAddLink(active.id); }}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAddLink(active.id)}
+                      disabled={addingLink || !newLinkTitle.trim() || !newLinkUrl.trim()}
+                      className="cs-btn-primary text-xs px-3 py-1.5"
+                    >
+                      {addingLink ? "Adding..." : "Add"}
+                    </button>
+                    <button
+                      onClick={() => { setShowAddLink(false); setNewLinkUrl(""); setNewLinkTitle(""); }}
+                      className="text-xs text-cs-text-muted"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Links list */}
+              {(spaceLinks[active.id] || []).length > 0 ? (
+                <div className="space-y-1.5">
+                  {(spaceLinks[active.id] || []).map((link) => (
+                    <div key={link.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md group">
+                      <div className="w-7 h-7 rounded-md bg-cs-card border border-cs-border flex items-center justify-center flex-shrink-0">
+                        <Globe size={13} className="text-cs-text-muted" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-cs-text-primary font-medium truncate">{link.title}</p>
+                        <p className="text-[10px] text-cs-text-muted truncate">{link.url}</p>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <a href={link.url} target="_blank" rel="noreferrer"
+                          className="text-cs-text-muted hover:text-cs-accent-blue p-1 rounded">
+                          <ExternalLink size={12} />
+                        </a>
+                        <button
+                          onClick={() => handleDeleteLink(active.id, link.id)}
+                          className="text-cs-text-muted hover:text-cs-accent-red p-1 rounded"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-cs-text-muted text-center py-3">
+                  No links added yet. Add URLs important to this property.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
