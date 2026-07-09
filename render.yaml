@@ -17,3 +17,11 @@ services:
         sync: false
       - key: NEXT_PUBLIC_APP_URL
         sync: false
+
+  - type: cron
+    name: keepalive-ping
+    runtime: image
+    image:
+      url: curlimages/curl:latest
+    schedule: "*/10 * * * *"
+    command: curl -fs https://launch.callstreamai.com/api/ping || true
