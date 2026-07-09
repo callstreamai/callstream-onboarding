@@ -12,27 +12,40 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
-    // Handle both hash-based tokens (implicit flow) and code-based (PKCE)
-    // Supabase JS v2 automatically exchanges the hash tokens on client init.
-    // We listen for the auth state to confirm a session is established.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        if (session) {
-          setSessionReady(true);
-        }
+    async function init() {
+      // If there are hash tokens in the URL, route through /auth/handle which
+      // handles setSession() and then redirects back here
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token=") && hash.includes("type=recovery")) {
+        router.replace("/auth/handle" + hash);
+        return;
       }
-    });
 
-    // Also check for an existing session (e.g. after callback redirect)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSessionReady(true);
-    });
+      // Check for existing session (arrived here after /auth/handle redirect)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setSessionReady(true);
+        setChecking(false);
+        return;
+      }
 
-    return () => subscription.unsubscribe();
+      // Listen for PASSWORD_RECOVERY event
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
+          setSessionReady(true);
+          setChecking(false);
+        }
+      });
+
+      setChecking(false);
+      return () => subscription.unsubscribe();
+    }
+    init();
   }, []);
 
   async function handleReset(e: React.FormEvent) {
@@ -40,24 +53,20 @@ export default function ResetPasswordPage() {
     setError("");
 
     if (!sessionReady) {
-      setError("Auth session missing! Please use the link from your email and try again.");
+      setError("No active session. Please use the link from your email.");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
     }
 
     setLoading(true);
-
     const { error } = await supabase.auth.updateUser({ password });
-
     if (error) {
       setError(error.message);
     } else {
@@ -65,6 +74,14 @@ export default function ResetPasswordPage() {
       setTimeout(() => router.push("/"), 2000);
     }
     setLoading(false);
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-cs-bg flex items-center justify-center">
+        <div className="w-5 h-5 rounded-full border-2 border-cs-accent-blue border-t-transparent animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -78,20 +95,8 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="cs-card p-6">
-          <h2 className="text-lg font-semibold text-cs-text-primary mb-1">
-            Set new password
-          </h2>
-          <p className="text-sm text-cs-text-secondary mb-6">
-            Enter your new password below
-          </p>
-
-          {!sessionReady && (
-            <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-md bg-cs-accent-orange/10">
-              <p className="text-xs text-cs-accent-orange">
-                Waiting for your session… make sure you opened this page directly from the link in your email.
-              </p>
-            </div>
-          )}
+          <h2 className="text-lg font-semibold text-cs-text-primary mb-1">Set new password</h2>
+          <p className="text-sm text-cs-text-secondary mb-6">Enter your new password below</p>
 
           <form onSubmit={handleReset} className="space-y-4">
             <div>
