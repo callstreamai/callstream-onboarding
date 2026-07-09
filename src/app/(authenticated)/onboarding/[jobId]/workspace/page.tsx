@@ -10,7 +10,7 @@ import {
   Folder, FileText, Upload, Plus, Users, Send, Copy,
   Building, Home, UtensilsCrossed, Calendar, Settings,
   BookOpen, Megaphone, CheckCircle2, Clock, X, Check,
-  Video, Link2, Globe, Trash2, ExternalLink,
+  Video, Globe, Trash2, ExternalLink,
 } from "lucide-react";
 
 interface SpaceDoc {
