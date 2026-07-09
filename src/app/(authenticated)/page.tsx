@@ -3,14 +3,22 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { StatCard } from "@/components/ui/StatCard";
 import { Spinner } from "@/components/ui/Spinner";
-import {
-  FileInput, ClipboardCheck, FileText, FolderOpen, ArrowRight,
-  Globe,
-} from "lucide-react";
+import { ArrowRight, Building2, Activity, FileInput, ClipboardCheck, FolderOpen, FileText, Globe } from "lucide-react";
+import { StatCard } from "@/components/ui/StatCard";
 
-interface Stats {
+interface Job {
+  id: string;
+  property_name: string | null;
+  property_url: string;
+  status: string;
+  pages_crawled: number;
+  files_processed: number;
+  extraction_confidence: number | null;
+  created_at: string;
+}
+
+interface AdminStats {
   totalProperties: number;
   active: number;
   pendingReview: number;
@@ -19,159 +27,163 @@ interface Stats {
   filesProcessed: number;
   fieldsExtracted: number;
   avgConfidence: number;
-  recentFiles: {
-    id: string;
-    job_id: string;
-    file_name: string;
-    file_type: string;
-    file_size: number;
-    processing_status: string;
-    created_at: string;
-  }[];
-  workspaces: {
-    id: string;
-    property_url: string;
-    property_name: string | null;
-    status: string;
-    pages_crawled: number;
-    files_processed: number;
-    created_at: string;
-  }[];
 }
+
+const STATUS_COLORS: Record<string, string> = {
+  extraction_complete: "bg-cs-accent-purple/10 text-cs-accent-purple",
+  approved:            "bg-cs-accent-green/10 text-cs-accent-green",
+  review_in_progress:  "bg-cs-accent-blue/10 text-cs-accent-blue",
+  review_pending:      "bg-cs-accent-orange/10 text-cs-accent-orange",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  extraction_complete: "Extraction Complete",
+  approved:            "Approved",
+  review_in_progress:  "In Review",
+  review_pending:      "Pending Review",
+};
 
 export default function DashboardPage() {
   const { profile, isAdmin } = useAuth();
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/dashboard/stats")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.error) setStats(data);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    if (isAdmin) {
+      fetch("/api/dashboard/stats")
+        .then((r) => r.json())
+        .then((data) => { if (!data.error) setAdminStats(data); })
+        .finally(() => setLoading(false));
+    } else {
+      fetch("/api/jobs")
+        .then((r) => r.json())
+        .then((data) => setJobs(data.jobs || []))
+        .finally(() => setLoading(false));
+    }
+  }, [isAdmin]);
 
-  function formatSize(bytes: number) {
-    if (!bytes) return "";
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  function displayName(job: Job) {
+    if (job.property_name) return job.property_name;
+    try { return new URL(job.property_url).hostname; } catch { return job.property_url; }
   }
 
-  function displayName(w: { property_name: string | null; property_url: string }) {
-    if (w.property_name) return w.property_name;
-    try { return new URL(w.property_url).hostname; } catch { return w.property_url; }
+  // ── CLIENT VIEW ──
+  if (!isAdmin) {
+    return (
+      <div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold">Welcome{profile?.full_name ? ", " + profile.full_name.split(" ")[0] : ""}</h1>
+          <p className="text-sm text-cs-text-muted mt-1">Here's the current status of your onboarding with Call Stream AI.</p>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-16"><Spinner size={28} /></div>
+        ) : jobs.length === 0 ? (
+          <div className="cs-card p-12 text-center">
+            <Building2 size={40} className="mx-auto text-cs-text-muted mb-3" />
+            <p className="text-cs-text-secondary font-medium">No projects assigned yet</p>
+            <p className="text-sm text-cs-text-muted mt-1">Your Call Stream AI team will add your property shortly.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {jobs.map((job) => {
+              const statusClass = STATUS_COLORS[job.status] || "bg-cs-card text-cs-text-muted";
+              const statusLabel = STATUS_LABELS[job.status] || job.status.replace(/_/g, " ");
+              return (
+                <div key={job.id} className="cs-card p-6">
+                  {/* Property header */}
+                  <div className="flex items-start justify-between mb-5">
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <Building2 size={18} className="text-cs-accent-blue" />
+                        <h2 className="text-lg font-semibold text-cs-text-primary">{displayName(job)}</h2>
+                      </div>
+                      <a href={job.property_url} target="_blank" rel="noreferrer"
+                        className="text-xs text-cs-text-muted hover:text-cs-accent-blue transition flex items-center gap-1">
+                        <Globe size={11} />{job.property_url}
+                      </a>
+                    </div>
+                    <span className={"cs-badge " + statusClass}>{statusLabel}</span>
+                  </div>
+
+                  {/* Progress stats */}
+                  <div className="grid grid-cols-3 gap-3 mb-5">
+                    <div className="cs-card p-3 text-center">
+                      <p className="text-xl font-semibold text-cs-text-primary">{job.pages_crawled}</p>
+                      <p className="text-[10px] text-cs-text-muted mt-0.5">Pages Crawled</p>
+                    </div>
+                    <div className="cs-card p-3 text-center">
+                      <p className="text-xl font-semibold text-cs-text-primary">{job.files_processed}</p>
+                      <p className="text-[10px] text-cs-text-muted mt-0.5">Files Processed</p>
+                    </div>
+                    <div className="cs-card p-3 text-center">
+                      <p className="text-xl font-semibold text-cs-accent-purple">
+                        {job.extraction_confidence ? Math.round(job.extraction_confidence * 100) + "%" : "—"}
+                      </p>
+                      <p className="text-[10px] text-cs-text-muted mt-0.5">AI Confidence</p>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-3">
+                    <Link href={"/onboarding/" + job.id + "/status"}
+                      className="cs-btn-primary text-sm flex-1 justify-center">
+                      <Activity size={14} />
+                      View Status
+                    </Link>
+                    <Link href={"/onboarding/" + job.id + "/workspace"}
+                      className="cs-btn-secondary text-sm flex-1 justify-center">
+                      <FolderOpen size={14} />
+                      Workspace
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
+  // ── ADMIN VIEW ──
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-1">Dashboard</h1>
       <p className="text-sm text-cs-text-secondary mb-6">
-        Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}
+        Welcome back{profile?.full_name ? ", " + profile.full_name : ""}
       </p>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Spinner size={24} /></div>
-      ) : (
+        <div className="flex justify-center py-16"><Spinner size={28} /></div>
+      ) : adminStats ? (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <StatCard label="TOTAL PROPERTIES" value={stats?.totalProperties ?? 0} />
-            <StatCard label="ONBOARDING ACTIVE" value={stats?.active ?? 0} color="blue" />
-            <StatCard label="PENDING REVIEW" value={stats?.pendingReview ?? 0} color="orange" />
-            <StatCard label="COMPLETED" value={stats?.completed ?? 0} color="green" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <StatCard label="Total Properties" value={adminStats.totalProperties} />
+            <StatCard label="Onboarding Active" value={adminStats.active} color="blue" />
+            <StatCard label="Pending Review" value={adminStats.pendingReview} color="orange" />
+            <StatCard label="Completed" value={adminStats.completed} color="green" />
           </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-            <StatCard label="PAGES CRAWLED" value={stats?.pagesCrawled ?? 0} />
-            <StatCard label="FILES PROCESSED" value={stats?.filesProcessed ?? 0} />
-            <StatCard label="FIELDS EXTRACTED" value={stats?.fieldsExtracted ?? 0} color="purple" />
-            <StatCard label="AVG CONFIDENCE" value={(stats?.avgConfidence ?? 0) + "%"} color="cyan" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <StatCard label="Pages Crawled" value={adminStats.pagesCrawled} />
+            <StatCard label="Files Processed" value={adminStats.filesProcessed} />
+            <StatCard label="Fields Extracted" value={adminStats.fieldsExtracted} color="purple" />
+            <StatCard label="Avg Confidence" value={Math.round(adminStats.avgConfidence * 100) + "%"} color="purple" />
           </div>
-
-          {/* My Workspaces */}
-          {stats?.workspaces && stats.workspaces.length > 0 && (
-            <div className="cs-card p-5 mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <p className="cs-label">MY WORKSPACES</p>
-                <Link href="/submissions" className="text-xs text-cs-accent-blue hover:underline">View all</Link>
-              </div>
-              <div className="space-y-2">
-                {stats.workspaces.slice(0, 5).map((w) => (
-                  <Link
-                    key={w.id}
-                    href={"/onboarding/" + w.id + "/workspace"}
-                    className="flex items-center gap-3 py-3 px-4 bg-cs-surface border border-cs-border rounded-md hover:border-cs-accent-blue/50 transition group"
-                  >
-                    <div className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center flex-shrink-0">
-                      <Globe size={16} className="text-cs-accent-blue" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-cs-text-primary font-medium truncate">
-                        {displayName(w)}
-                      </p>
-                      <p className="text-[10px] text-cs-text-muted">
-                        {w.pages_crawled} pages · {w.files_processed} files · {new Date(w.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition flex-shrink-0" />
-                  </Link>
-                ))}
-              </div>
+          <div className="cs-card p-5">
+            <p className="text-sm font-medium mb-4">Quick Actions</p>
+            <div className="flex gap-3">
+              <Link href="/onboarding" className="cs-btn-secondary text-sm">
+                <FileInput size={16} />New Onboarding
+              </Link>
+              <Link href="/submissions" className="cs-btn-secondary text-sm">
+                <FolderOpen size={16} />View Submissions
+              </Link>
             </div>
-          )}
-
-          {/* Recent documents */}
-          {stats?.recentFiles && stats.recentFiles.length > 0 && (
-            <div className="cs-card p-5 mb-6">
-              <p className="cs-label mb-3">RECENT DOCUMENTS</p>
-              <div className="space-y-2">
-                {stats.recentFiles.map((f) => (
-                  <div key={f.id} className="flex items-center gap-3 py-2 px-3 bg-cs-surface rounded-md border border-cs-border">
-                    <FileText size={14} className="text-cs-text-muted flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-cs-text-primary truncate">{f.file_name}</p>
-                      <p className="text-[10px] text-cs-text-muted">
-                        {f.file_type} · {formatSize(f.file_size)} · {new Date(f.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <span className={"text-[10px] px-2 py-0.5 rounded " + (
-                      f.processing_status === "complete"
-                        ? "bg-cs-accent-green/10 text-cs-accent-green"
-                        : f.processing_status === "failed"
-                        ? "bg-cs-accent-red/10 text-cs-accent-red"
-                        : "bg-cs-card text-cs-text-muted"
-                    )}>
-                      {f.processing_status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
         </>
-      )}
-
-      <div className="cs-card p-5">
-        <p className="cs-label mb-3">QUICK ACTIONS</p>
-        <div className="flex gap-3 flex-wrap">
-          {stats?.workspaces && stats.workspaces.length > 0 && (
-            <Link href={"/onboarding/" + stats.workspaces[0].id + "/workspace"} className="cs-btn-primary text-sm">
-              <FolderOpen size={16} />
-              Open Workspace
-            </Link>
-          )}
-          <Link href="/onboarding" className="cs-btn-secondary text-sm">
-            <FileInput size={16} />
-            New Onboarding
-          </Link>
-          <Link href={isAdmin ? "/admin/submissions" : "/submissions"} className="cs-btn-secondary text-sm">
-            <ClipboardCheck size={16} />
-            View Submissions
-          </Link>
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }
