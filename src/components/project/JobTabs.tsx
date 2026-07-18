@@ -18,7 +18,7 @@ export default function JobTabs({ jobId, propertyName }: Props) {
     { label: "Status",        href: "/onboarding/" + jobId + "/status",        icon: Activity,  adminOnly: false },
     { label: "Workspace",     href: "/onboarding/" + jobId + "/workspace",     icon: FolderOpen, adminOnly: false },
     { label: "Project",       href: "/onboarding/" + jobId + "/project",       icon: Kanban,    adminOnly: false },
-    { label: "Voice Preview", href: "/onboarding/" + jobId + "/voice-preview", icon: Mic2,      adminOnly: true },
+    { label: "Voice Preview", href: "/onboarding/" + jobId + "/voice-preview", icon: Mic2,      adminOnly: false },
   ];
 
   return (
