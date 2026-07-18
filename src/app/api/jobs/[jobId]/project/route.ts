@@ -20,19 +20,29 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
       fetch(SB_URL() + "/rest/v1/project_tasks?job_id=eq." + params.jobId + "&select=*&order=created_at.desc", {
         headers: sbHeaders(), cache: "no-store",
       }),
-      fetch(SB_URL() + "/rest/v1/project_comments?job_id=eq." + params.jobId + "&select=*&order=created_at.desc", {
+      // Join profiles so we get author_name / author_email for avatars
+      fetch(SB_URL() + "/rest/v1/project_comments?job_id=eq." + params.jobId + "&select=*,profiles:author_id(full_name,email)&order=created_at.asc", {
         headers: sbHeaders(), cache: "no-store",
       }),
     ]);
 
     const milestones = await milestonesRes.json();
     const tasks = await tasksRes.json();
-    const comments = await commentsRes.json();
+    const rawComments = await commentsRes.json();
+
+    // Enrich comment rows with flat author_name / author_email fields
+    const comments = Array.isArray(rawComments)
+      ? rawComments.map((c: any) => ({
+          ...c,
+          author_name: c.profiles?.full_name || null,
+          author_email: c.profiles?.email || null,
+        }))
+      : [];
 
     return NextResponse.json({
       milestones: Array.isArray(milestones) ? milestones : [],
       tasks: Array.isArray(tasks) ? tasks : [],
-      comments: Array.isArray(comments) ? comments : [],
+      comments,
     });
   } catch {
     return NextResponse.json({ milestones: [], tasks: [], comments: [] }, { status: 500 });
