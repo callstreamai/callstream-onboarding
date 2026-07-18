@@ -12,7 +12,7 @@ import {
 import MilestoneTimeline from "@/components/project/MilestoneTimeline";
 import TaskBoard from "@/components/project/TaskBoard";
 import CommentFeed from "@/components/project/CommentFeed";
-import NotificationBell from "@/components/project/NotificationBell";
+import JobTabs from "@/components/project/JobTabs";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   LayoutList,
@@ -114,17 +114,13 @@ export default function ProjectPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-cs-text-primary">
-            Project
-          </h1>
-          <p className="text-sm text-cs-text-muted mt-0.5">
-            {jobName}
-          </p>
-        </div>
-        {currentUser && <NotificationBell userId={currentUser.id} />}
+      {/* Top nav — back link + tab row */}
+      <JobTabs jobId={jobId} propertyName={jobName} />
+
+      {/* Page header */}
+      <div>
+        <h1 className="text-lg font-semibold text-cs-text-primary">Project</h1>
+        <p className="text-sm text-cs-text-muted mt-0.5">{jobName}</p>
       </div>
 
       {/* Tab bar */}
