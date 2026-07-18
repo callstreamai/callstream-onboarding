@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { Play, Loader2, Volume2, Mic } from "lucide-react";
+import JobTabs from "@/components/project/JobTabs";
 
 interface BlandVoice {
   id: string;
@@ -100,6 +101,9 @@ export default function ReviewPage() {
 
   return (
     <div className="max-w-4xl">
+      {/* Top nav */}
+      <JobTabs jobId={jobId} />
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
