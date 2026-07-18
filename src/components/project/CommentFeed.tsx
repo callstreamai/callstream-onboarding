@@ -192,15 +192,19 @@ export default function CommentFeed({ comments, users, currentUser, jobId, onUpd
           {comments.map((c) => (
             <div key={c.id} className="cs-card p-4">
               <div className="flex items-start gap-3">
-                {/* Avatar */}
-                <div className="w-7 h-7 rounded-full bg-cs-accent-blue/20 flex items-center justify-center text-xs text-cs-accent-blue font-medium flex-shrink-0">
-                  {(c.author_name || c.author_email || "?")[0].toUpperCase()}
+                {/* Avatar — first letter of name or email; fallback to "U" */}
+                <div className="w-7 h-7 rounded-full bg-cs-accent-blue/20 flex items-center justify-center text-xs text-cs-accent-blue font-semibold flex-shrink-0">
+                  {c.author_name
+                    ? c.author_name[0].toUpperCase()
+                    : c.author_email
+                    ? c.author_email[0].toUpperCase()
+                    : "U"}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-cs-text-primary">
-                      {c.author_name || c.author_email}
+                      {c.author_name || c.author_email || "Unknown user"}
                     </span>
                     <span className="text-[10px] text-cs-text-muted">
                       {formatTime(c.created_at)}
