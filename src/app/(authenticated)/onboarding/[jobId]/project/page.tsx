@@ -90,7 +90,7 @@ export default function ProjectPage() {
       const jobRes = await fetch("/api/jobs/" + jobId);
       if (jobRes.ok) {
         const jobData = await jobRes.json();
-        setJobName(jobData.property_url || jobData.id?.slice(0, 8) || "Project");
+        setJobName(jobData.property_name || jobData.property_url || jobData.id?.slice(0, 8) || "Project");
       }
 
       await loadProject();
@@ -119,7 +119,7 @@ export default function ProjectPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-lg font-semibold text-cs-text-primary">Project</h1>
+        <h1 className="text-lg font-semibold text-cs-text-primary">Project Timeline</h1>
         <p className="text-sm text-cs-text-muted mt-0.5">{jobName}</p>
       </div>
 
