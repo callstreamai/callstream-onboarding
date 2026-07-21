@@ -8,16 +8,10 @@ import JobTabs from "@/components/project/JobTabs";
 import CommentFeed from "@/components/project/CommentFeed";
 import {
   Folder, FileText, Upload, Plus, Users, Send, Copy,
-  Building, Home, UtensilsCrossed, Calendar, Settings,
-  BookOpen, Megaphone, CheckCircle2, Clock, X, Check,
+  CheckCircle2, Clock, X, Check,
   Video, Globe, Trash2, ExternalLink,
-  // extended icon set
-  Mic2, Phone, Star, Zap, Coffee, ShoppingBag, Car, Plane,
-  Music, Camera, Heart, Shield, Briefcase, Key, Wrench,
-  ChefHat, Dumbbell, Wifi, MapPin, Tag, ClipboardList,
-  CreditCard, Headphones, Monitor, Smile, Award, Palette,
-  Waves, TreePine, Sun, Moon, Package, Layers,
 } from "lucide-react";
+import { ICON_MAP, ICON_LABELS } from "@/lib/spaceIcons";
 
 interface SpaceDoc {
   id: string;
@@ -52,70 +46,7 @@ interface Invitation {
   created_at: string;
 }
 
-// Full icon registry — key stored in DB, component used in UI
-export const ICON_MAP: Record<string, React.ElementType> = {
-  // Original
-  building: Building,
-  home: Home,
-  utensils: UtensilsCrossed,
-  calendar: Calendar,
-  settings: Settings,
-  "file-text": FileText,
-  book: BookOpen,
-  megaphone: Megaphone,
-  folder: Folder,
-  // Extended
-  mic: Mic2,
-  phone: Phone,
-  star: Star,
-  zap: Zap,
-  coffee: Coffee,
-  bag: ShoppingBag,
-  car: Car,
-  plane: Plane,
-  music: Music,
-  camera: Camera,
-  heart: Heart,
-  shield: Shield,
-  briefcase: Briefcase,
-  key: Key,
-  wrench: Wrench,
-  chef: ChefHat,
-  dumbbell: Dumbbell,
-  wifi: Wifi,
-  map: MapPin,
-  tag: Tag,
-  clipboard: ClipboardList,
-  card: CreditCard,
-  headphones: Headphones,
-  monitor: Monitor,
-  smile: Smile,
-  award: Award,
-  palette: Palette,
-  waves: Waves,
-  tree: TreePine,
-  sun: Sun,
-  moon: Moon,
-  package: Package,
-  layers: Layers,
-  video: Video,
-  globe: Globe,
-};
 
-// Human-readable labels for the picker
-const ICON_LABELS: Record<string, string> = {
-  building: "Building", home: "Home", utensils: "Restaurant", calendar: "Calendar",
-  settings: "Settings", "file-text": "Document", book: "Book", megaphone: "Megaphone",
-  folder: "Folder", mic: "Microphone", phone: "Phone", star: "Star", zap: "Lightning",
-  coffee: "Coffee", bag: "Shopping", car: "Car", plane: "Travel", music: "Music",
-  camera: "Camera", heart: "Heart", shield: "Shield", briefcase: "Briefcase",
-  key: "Key", wrench: "Maintenance", chef: "Kitchen", dumbbell: "Fitness",
-  wifi: "WiFi", map: "Location", tag: "Tag", clipboard: "Checklist",
-  card: "Payment", headphones: "Support", monitor: "Technology", smile: "Guest",
-  award: "Awards", palette: "Design", waves: "Pool/Spa", tree: "Outdoors",
-  sun: "Daytime", moon: "Nightlife", package: "Packages", layers: "Floors",
-  video: "Video", globe: "Website",
-};
 
 function formatSize(bytes: number) {
   if (!bytes) return "";
