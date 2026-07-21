@@ -94,15 +94,17 @@ export async function POST(
         `${appUrl}/login`;
 
       // Make sure they're linked to this account + project
-      await supabase.from("account_users").upsert(
-        { account_id: params.accountId, user_id: existingUser.id },
-        { onConflict: "account_id,user_id" }
-      );
-      if (account?.onboarding_job_id) {
-        await supabase.from("project_members").upsert(
-          { job_id: account.onboarding_job_id, user_id: existingUser.id, role: "member" },
-          { onConflict: "job_id,user_id" }
+      if (existingUser) {
+        await supabase.from("account_users").upsert(
+          { account_id: params.accountId, user_id: existingUser.id },
+          { onConflict: "account_id,user_id" }
         );
+        if (account?.onboarding_job_id) {
+          await supabase.from("project_members").upsert(
+            { job_id: account.onboarding_job_id, user_id: existingUser.id, role: "member" },
+            { onConflict: "job_id,user_id" }
+          );
+        }
       }
     }
 
