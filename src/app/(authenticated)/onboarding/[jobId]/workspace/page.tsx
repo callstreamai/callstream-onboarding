@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
@@ -11,6 +11,12 @@ import {
   Building, Home, UtensilsCrossed, Calendar, Settings,
   BookOpen, Megaphone, CheckCircle2, Clock, X, Check,
   Video, Globe, Trash2, ExternalLink,
+  // extended icon set
+  Mic2, Phone, Star, Zap, Coffee, ShoppingBag, Car, Plane,
+  Music, Camera, Heart, Shield, Briefcase, Key, Wrench,
+  ChefHat, Dumbbell, Wifi, MapPin, Tag, ClipboardList,
+  CreditCard, Headphones, Monitor, Smile, Award, Palette,
+  Waves, TreePine, Sun, Moon, Package, Layers,
 } from "lucide-react";
 
 interface SpaceDoc {
@@ -46,7 +52,9 @@ interface Invitation {
   created_at: string;
 }
 
-const ICON_MAP: Record<string, typeof Folder> = {
+// Full icon registry — key stored in DB, component used in UI
+export const ICON_MAP: Record<string, React.ElementType> = {
+  // Original
   building: Building,
   home: Home,
   utensils: UtensilsCrossed,
@@ -56,6 +64,57 @@ const ICON_MAP: Record<string, typeof Folder> = {
   book: BookOpen,
   megaphone: Megaphone,
   folder: Folder,
+  // Extended
+  mic: Mic2,
+  phone: Phone,
+  star: Star,
+  zap: Zap,
+  coffee: Coffee,
+  bag: ShoppingBag,
+  car: Car,
+  plane: Plane,
+  music: Music,
+  camera: Camera,
+  heart: Heart,
+  shield: Shield,
+  briefcase: Briefcase,
+  key: Key,
+  wrench: Wrench,
+  chef: ChefHat,
+  dumbbell: Dumbbell,
+  wifi: Wifi,
+  map: MapPin,
+  tag: Tag,
+  clipboard: ClipboardList,
+  card: CreditCard,
+  headphones: Headphones,
+  monitor: Monitor,
+  smile: Smile,
+  award: Award,
+  palette: Palette,
+  waves: Waves,
+  tree: TreePine,
+  sun: Sun,
+  moon: Moon,
+  package: Package,
+  layers: Layers,
+  video: Video,
+  globe: Globe,
+};
+
+// Human-readable labels for the picker
+const ICON_LABELS: Record<string, string> = {
+  building: "Building", home: "Home", utensils: "Restaurant", calendar: "Calendar",
+  settings: "Settings", "file-text": "Document", book: "Book", megaphone: "Megaphone",
+  folder: "Folder", mic: "Microphone", phone: "Phone", star: "Star", zap: "Lightning",
+  coffee: "Coffee", bag: "Shopping", car: "Car", plane: "Travel", music: "Music",
+  camera: "Camera", heart: "Heart", shield: "Shield", briefcase: "Briefcase",
+  key: "Key", wrench: "Maintenance", chef: "Kitchen", dumbbell: "Fitness",
+  wifi: "WiFi", map: "Location", tag: "Tag", clipboard: "Checklist",
+  card: "Payment", headphones: "Support", monitor: "Technology", smile: "Guest",
+  award: "Awards", palette: "Design", waves: "Pool/Spa", tree: "Outdoors",
+  sun: "Daytime", moon: "Nightlife", package: "Packages", layers: "Floors",
+  video: "Video", globe: "Website",
 };
 
 function formatSize(bytes: number) {
@@ -65,6 +124,56 @@ function formatSize(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+// ─── Icon Picker Component ───────────────────────────────────────────────────
+function IconPicker({
+  value,
+  onChange,
+  onClose,
+}: {
+  value: string;
+  onChange: (icon: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  const icons = Object.entries(ICON_MAP);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 top-10 z-50 bg-cs-card border border-cs-border rounded-xl shadow-xl p-3 w-72"
+    >
+      <p className="text-[10px] text-cs-text-muted uppercase tracking-wide mb-2 px-1">Choose icon</p>
+      <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+        {icons.map(([key, Icon]) => (
+          <button
+            key={key}
+            title={ICON_LABELS[key] || key}
+            onClick={() => { onChange(key); onClose(); }}
+            className={
+              "w-8 h-8 rounded-md flex items-center justify-center transition " +
+              (value === key
+                ? "bg-cs-accent-blue text-white"
+                : "hover:bg-cs-border/60 text-cs-text-muted hover:text-cs-text-primary")
+            }
+          >
+            <Icon size={15} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
 export default function WorkspacePage() {
   const params = useParams();
   const jobId = params.jobId as string;
@@ -81,6 +190,8 @@ export default function WorkspacePage() {
   const [showNewSpace, setShowNewSpace] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState("");
   const [newSpaceDesc, setNewSpaceDesc] = useState("");
+  const [newSpaceIcon, setNewSpaceIcon] = useState("folder");
+  const [showNewIconPicker, setShowNewIconPicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -90,6 +201,8 @@ export default function WorkspacePage() {
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [addingLink, setAddingLink] = useState(false);
+  // Icon editing per card
+  const [iconPickerFor, setIconPickerFor] = useState<string | null>(null);
 
   const loadWorkspace = useCallback(async () => {
     const res = await fetch("/api/jobs/" + jobId + "/spaces");
@@ -172,12 +285,24 @@ export default function WorkspacePage() {
     await fetch("/api/jobs/" + jobId + "/spaces", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newSpaceName, description: newSpaceDesc, userId: user?.id }),
+      body: JSON.stringify({ name: newSpaceName, description: newSpaceDesc, icon: newSpaceIcon, userId: user?.id }),
     });
     setNewSpaceName("");
     setNewSpaceDesc("");
+    setNewSpaceIcon("folder");
     setShowNewSpace(false);
     loadWorkspace();
+  }
+
+  async function handleChangeIcon(spaceId: string, icon: string) {
+    // Optimistic update
+    setSpaces((prev) => prev.map((s) => s.id === spaceId ? { ...s, icon } : s));
+    setIconPickerFor(null);
+    await fetch("/api/jobs/" + jobId + "/spaces", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spaceId, icon }),
+    });
   }
 
   async function handleFileUpload(spaceId: string, files: FileList) {
@@ -242,6 +367,7 @@ export default function WorkspacePage() {
   if (loading) return <div className="flex justify-center py-20"><Spinner /></div>;
 
   const active = spaces.find((s) => s.id === activeSpace);
+  const NewIconComp = ICON_MAP[newSpaceIcon] || Folder;
 
   return (
     <div>
@@ -320,11 +446,46 @@ export default function WorkspacePage() {
         {/* New space form */}
         {showNewSpace && (
           <div className="cs-card p-4 space-y-3">
-            <input value={newSpaceName} onChange={(e) => setNewSpaceName(e.target.value)} placeholder="Space name (e.g., Spa & Wellness)" className="cs-input" />
-            <input value={newSpaceDesc} onChange={(e) => setNewSpaceDesc(e.target.value)} placeholder="Description (optional)" className="cs-input" />
+            <p className="text-xs font-medium text-cs-text-primary">New Space</p>
+            <div className="flex gap-3 items-start">
+              {/* Icon selector */}
+              <div className="relative flex-shrink-0">
+                <button
+                  onClick={() => setShowNewIconPicker(!showNewIconPicker)}
+                  className="w-10 h-10 rounded-lg bg-cs-accent-blue/10 border border-cs-border hover:border-cs-accent-blue flex items-center justify-center transition"
+                  title="Choose icon"
+                >
+                  <NewIconComp size={18} className="text-cs-accent-blue" />
+                </button>
+                {showNewIconPicker && (
+                  <IconPicker
+                    value={newSpaceIcon}
+                    onChange={(icon) => setNewSpaceIcon(icon)}
+                    onClose={() => setShowNewIconPicker(false)}
+                  />
+                )}
+              </div>
+
+              {/* Name + desc */}
+              <div className="flex-1 space-y-2">
+                <input
+                  value={newSpaceName}
+                  onChange={(e) => setNewSpaceName(e.target.value)}
+                  placeholder="Space name (e.g., Spa & Wellness)"
+                  className="cs-input"
+                  autoFocus
+                />
+                <input
+                  value={newSpaceDesc}
+                  onChange={(e) => setNewSpaceDesc(e.target.value)}
+                  placeholder="Description (optional)"
+                  className="cs-input"
+                />
+              </div>
+            </div>
             <div className="flex gap-2">
               <button onClick={handleAddSpace} className="cs-btn-primary text-xs px-3 py-1.5">Create space</button>
-              <button onClick={() => setShowNewSpace(false)} className="text-xs text-cs-text-muted">Cancel</button>
+              <button onClick={() => { setShowNewSpace(false); setNewSpaceIcon("folder"); }} className="text-xs text-cs-text-muted">Cancel</button>
             </div>
           </div>
         )}
@@ -342,42 +503,64 @@ export default function WorkspacePage() {
           {spaces.map((space) => {
             const IconComp = ICON_MAP[space.icon] || Folder;
             const docCount = space.space_documents?.length || 0;
+            const isPickerOpen = iconPickerFor === space.id;
 
             return (
-              <button
-                key={space.id}
-                onClick={() => {
-                  const nextActive = activeSpace === space.id ? null : space.id;
-                  setActiveSpace(nextActive);
-                  if (nextActive) { loadLinks(nextActive); setShowAddLink(false); }
-                }}
-                className={
-                  "cs-card p-4 text-left transition hover:border-cs-accent-blue/50 " +
-                  (activeSpace === space.id ? "border-cs-accent-blue" : "")
-                }
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center">
-                    <IconComp size={16} className="text-cs-accent-blue" />
+              <div key={space.id} className="relative">
+                <button
+                  onClick={() => {
+                    const nextActive = activeSpace === space.id ? null : space.id;
+                    setActiveSpace(nextActive);
+                    if (nextActive) { loadLinks(nextActive); setShowAddLink(false); }
+                    setIconPickerFor(null);
+                  }}
+                  className={
+                    "w-full cs-card p-4 text-left transition hover:border-cs-accent-blue/50 " +
+                    (activeSpace === space.id ? "border-cs-accent-blue" : "")
+                  }
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    {/* Icon — click to change */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIconPickerFor(isPickerOpen ? null : space.id);
+                      }}
+                      className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center cursor-pointer hover:bg-cs-accent-blue/25 hover:ring-1 hover:ring-cs-accent-blue/40 transition group"
+                      title="Click to change icon"
+                    >
+                      <IconComp size={16} className="text-cs-accent-blue" />
+                    </div>
+                    <div className="flex gap-1">
+                      {docCount > 0 && (
+                        <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
+                          {docCount} file{docCount !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {(spaceLinks[space.id] || []).length > 0 && (
+                        <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <Globe size={9} />{(spaceLinks[space.id] || []).length}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    {docCount > 0 && (
-                      <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
-                        {docCount} file{docCount !== 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {(spaceLinks[space.id] || []).length > 0 && (
-                      <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                        <Globe size={9} />{(spaceLinks[space.id] || []).length}
-                      </span>
-                    )}
+                  <h3 className="text-sm font-medium text-cs-text-primary">{space.name}</h3>
+                  {space.description && (
+                    <p className="text-[11px] text-cs-text-muted mt-0.5 line-clamp-2">{space.description}</p>
+                  )}
+                </button>
+
+                {/* Icon picker for this card */}
+                {isPickerOpen && (
+                  <div className="absolute top-12 left-0 z-50">
+                    <IconPicker
+                      value={space.icon}
+                      onChange={(icon) => handleChangeIcon(space.id, icon)}
+                      onClose={() => setIconPickerFor(null)}
+                    />
                   </div>
-                </div>
-                <h3 className="text-sm font-medium text-cs-text-primary">{space.name}</h3>
-                {space.description && (
-                  <p className="text-[11px] text-cs-text-muted mt-0.5 line-clamp-2">{space.description}</p>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -419,7 +602,7 @@ export default function WorkspacePage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-cs-text-primary truncate">{doc.name}</p>
                       <p className="text-[10px] text-cs-text-muted">
-                        {doc.file_type} · {formatSize(doc.file_size)} · {new Date(doc.created_at).toLocaleDateString()}
+                        {doc.file_type} · {formatSize(doc.file_size || 0)} · {new Date(doc.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     {doc.processing_status === "complete" ? (
@@ -434,8 +617,7 @@ export default function WorkspacePage() {
               <p className="text-xs text-cs-text-muted text-center py-4">No documents yet. Upload files to get started.</p>
             )}
 
-
-            {/* ── Links / Bookmarks section ── */}
+            {/* Links section */}
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Globe size={14} className="text-cs-accent-blue" />
@@ -447,7 +629,6 @@ export default function WorkspacePage() {
                 )}
               </div>
 
-              {/* Links list */}
               {(spaceLinks[active.id] || []).length > 0 ? (
                 <div className="space-y-1.5 mb-3">
                   {(spaceLinks[active.id] || []).map((link) => (
@@ -480,7 +661,6 @@ export default function WorkspacePage() {
                 </p>
               )}
 
-              {/* Add link form */}
               {showAddLink && (
                 <div className="bg-cs-bg border border-cs-border rounded-lg p-3 mb-3 space-y-2">
                   <input
@@ -517,7 +697,6 @@ export default function WorkspacePage() {
                 </div>
               )}
 
-              {/* + Add link button at bottom */}
               {!showAddLink && (
                 <button
                   onClick={() => setShowAddLink(true)}
