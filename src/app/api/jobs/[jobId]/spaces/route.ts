@@ -65,3 +65,29 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: { jobId: string } }) {
+  try {
+    const supabase = createServiceClient();
+    const { spaceId, icon, name, description } = await req.json();
+    if (!spaceId) return NextResponse.json({ error: "spaceId required" }, { status: 400 });
+
+    const updates: Record<string, any> = {};
+    if (icon !== undefined) updates.icon = icon;
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+
+    const { data, error } = await supabase
+      .from("spaces")
+      .update(updates)
+      .eq("id", spaceId)
+      .eq("job_id", params.jobId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json({ space: data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
