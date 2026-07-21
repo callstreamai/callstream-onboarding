@@ -6,7 +6,14 @@ import {
   CONFIDENCE_PROMPT,
 } from "./prompts";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy-initialized to avoid build-time crash when OPENAI_API_KEY is absent
+let _openai: OpenAI | null = null;
+const openai = new Proxy({} as OpenAI, {
+  get(_target, prop) {
+    if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return (_openai as any)[prop];
+  },
+});
 
 export interface ExtractionSource {
   type: "web" | "file";
