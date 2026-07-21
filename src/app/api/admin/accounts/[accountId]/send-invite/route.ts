@@ -36,11 +36,20 @@ export async function POST(
     const { data: usersData } = await adminClient.auth.admin.listUsers();
     const existingUser = usersData?.users?.find((u: any) => u.email === email);
 
+    // Treat as "new" if: no auth account, OR has an account but has NEVER actually signed in
+    // (e.g. account was auto-created by "Get Login Link" but user was never sent a registration email)
+    const hasEverSignedIn = !!existingUser?.last_sign_in_at;
     let inviteLink = "";
-    let isNewUser = !existingUser;
+    let isNewUser = !existingUser || !hasEverSignedIn;
 
     if (isNewUser) {
-      // ── New user: generate a real invite link (24h expiry, forces password setup) ──
+      // ── New/never-signed-in user: generate a proper invite link (24h, sets up password) ──
+      // If they have an auth account but never signed in (e.g. auto-created by Get Login Link),
+      // delete it first so we can generate a clean invite link.
+      if (existingUser && !hasEverSignedIn) {
+        await adminClient.auth.admin.deleteUser(existingUser.id);
+      }
+
       const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.generateLink({
         type: "invite",
         email,
