@@ -7,7 +7,7 @@ import type { Account, Contact } from "@/types/account";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   Building2, UserPlus, Plus, Trash2, FileInput, ArrowLeft,
-  Phone, Mail, Star, ArrowRight, Link2, Copy, Check, ExternalLink,
+  Phone, Mail, Star, ArrowRight, Link2, Copy, Check, ExternalLink, Send,
 } from "lucide-react";
 
 export default function AccountDetailPage() {
@@ -32,6 +32,10 @@ export default function AccountDetailPage() {
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, { magicLink: string; loginUrl: string; onboardingUrl: string }>>({});
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Invite emails
+  const [sendingInviteFor, setSendingInviteFor] = useState<string | null>(null);
+  const [inviteStatus, setInviteStatus] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   useEffect(() => {
     if (!authLoading && !isAdmin) { router.push("/"); return; }
@@ -101,6 +105,28 @@ export default function AccountDetailPage() {
       }
     } catch {}
     setGeneratingFor(null);
+  }
+
+  async function sendInvite(contact: Contact) {
+    if (!contact.email) return;
+    setSendingInviteFor(contact.id);
+    setInviteStatus((prev) => ({ ...prev, [contact.id]: { ok: false, msg: "" } }));
+    try {
+      const res = await fetch("/api/admin/accounts/" + accountId + "/send-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: contact.email, fullName: contact.full_name }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setInviteStatus((prev) => ({ ...prev, [contact.id]: { ok: true, msg: data.message || "Invite sent" } }));
+      } else {
+        setInviteStatus((prev) => ({ ...prev, [contact.id]: { ok: false, msg: data.error || "Failed to send" } }));
+      }
+    } catch {
+      setInviteStatus((prev) => ({ ...prev, [contact.id]: { ok: false, msg: "Network error" } }));
+    }
+    setSendingInviteFor(null);
   }
 
   function copyToClipboard(text: string, id: string) {
@@ -194,7 +220,7 @@ export default function AccountDetailPage() {
         ) : (
           <div className="space-y-2">
             {contacts.map((c) => (
-              <div key={c.id} className="bg-cs-surface border border-cs-border rounded-md p-3">
+              <div key={c.id} className="bg-cs-surface border border-cs-border rounded-md p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {c.is_primary && <Star size={12} className="text-cs-accent-orange" />}
@@ -208,20 +234,56 @@ export default function AccountDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {c.email && (
-                      <button
-                        onClick={() => generateLink(c)}
-                        disabled={generatingFor === c.id}
-                        className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-cs-accent-blue/10 text-cs-accent-blue hover:bg-cs-accent-blue/20 transition"
-                      >
-                        <Link2 size={12} />
-                        {generatingFor === c.id ? "Generating..." : "Get Login Link"}
-                      </button>
+                      <>
+                        {/* Send Invite Email */}
+                        <button
+                          onClick={() => sendInvite(c)}
+                          disabled={sendingInviteFor === c.id}
+                          className={
+                            "flex items-center gap-1 text-xs px-2.5 py-1 rounded-md transition " +
+                            (inviteStatus[c.id]?.ok
+                              ? "bg-cs-accent-green/10 text-cs-accent-green"
+                              : "bg-cs-accent-purple/10 text-cs-accent-purple hover:bg-cs-accent-purple/20")
+                          }
+                          title={inviteStatus[c.id]?.msg || "Send registration invite email"}
+                        >
+                          {sendingInviteFor === c.id ? (
+                            <><Send size={12} className="animate-pulse" /> Sending...</>
+                          ) : inviteStatus[c.id]?.ok ? (
+                            <><Check size={12} /> Sent</>
+                          ) : (
+                            <><Send size={12} /> Send Invite</>
+                          )}
+                        </button>
+
+                        {/* Get Login Link (copy) */}
+                        <button
+                          onClick={() => generateLink(c)}
+                          disabled={generatingFor === c.id}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-cs-accent-blue/10 text-cs-accent-blue hover:bg-cs-accent-blue/20 transition"
+                        >
+                          <Link2 size={12} />
+                          {generatingFor === c.id ? "Generating..." : "Get Login Link"}
+                        </button>
+                      </>
                     )}
                     <button onClick={() => deleteContact(c.id)} className="text-cs-text-muted hover:text-cs-accent-red transition-colors p-1">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
+
+                {/* Invite status message */}
+                {inviteStatus[c.id]?.msg && (
+                  <p className={
+                    "text-xs px-2 py-1 rounded " +
+                    (inviteStatus[c.id].ok
+                      ? "text-cs-accent-green bg-cs-accent-green/5"
+                      : "text-cs-accent-red bg-cs-accent-red/5")
+                  }>
+                    {inviteStatus[c.id].ok ? "✓ " : "✗ "}{inviteStatus[c.id].msg}
+                  </p>
+                )}
 
                 {/* Generated links panel */}
                 {generatedLinks[c.id] && (
