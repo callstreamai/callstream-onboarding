@@ -49,7 +49,7 @@ export async function POST(
     const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.generateLink({
       type: "invite",
       email,
-      options: { redirectTo: `${appUrl}/auth/complete-signup` },
+      options: { redirectTo: `${appUrl}/auth/handle` },
     });
 
     if (inviteErr) throw inviteErr;
