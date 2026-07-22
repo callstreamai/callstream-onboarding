@@ -201,6 +201,7 @@ export async function POST(
       success: true,
       emailId: emailData.id,
       isNewUser,
+      inviteLink,
       message: isNewUser
         ? `Invite email sent to ${email} — link expires in 24 hours`
         : `Sign-in email sent to ${email}`,
