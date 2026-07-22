@@ -32,88 +32,51 @@ export async function POST(
       ? `${appUrl}/onboarding/${account.onboarding_job_id}/workspace`
       : `${appUrl}/`;
 
-    // Check if this email already has a Supabase auth account
+    // Send Invite ALWAYS generates a proper registration link (type=invite, 24h expiry).
+    // Delete any existing auth account first — this clears ghost accounts created by
+    // "Get Login Link" and ensures the user gets a clean password-setup flow regardless
+    // of their sign-in history.
     const { data: usersData } = await adminClient.auth.admin.listUsers();
     const existingUser = usersData?.users?.find((u: any) => u.email === email);
 
-    // Treat as "new" if: no auth account, OR has an account but has NEVER actually signed in
-    // (e.g. account was auto-created by "Get Login Link" but user was never sent a registration email)
-    const hasEverSignedIn = !!existingUser?.last_sign_in_at;
+    if (existingUser) {
+      await adminClient.auth.admin.deleteUser(existingUser.id);
+    }
+
     let inviteLink = "";
-    let isNewUser = !existingUser || !hasEverSignedIn;
+    const isNewUser = true; // always registration flow from this endpoint
 
-    if (isNewUser) {
-      // ── New/never-signed-in user: generate a proper invite link (24h, sets up password) ──
-      // If they have an auth account but never signed in (e.g. auto-created by Get Login Link),
-      // delete it first so we can generate a clean invite link.
-      if (existingUser && !hasEverSignedIn) {
-        await adminClient.auth.admin.deleteUser(existingUser.id);
-      }
+    const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo: `${appUrl}/auth/complete-signup` },
+    });
 
-      const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.generateLink({
-        type: "invite",
-        email,
-        options: { redirectTo: `${appUrl}/auth/complete-signup` },
-      });
+    if (inviteErr) throw inviteErr;
 
-      if (inviteErr) throw inviteErr;
+    const ld = inviteData as any;
+    inviteLink =
+      ld?.properties?.action_link ||
+      ld?.action_link ||
+      ld?.user?.action_link ||
+      `${appUrl}/login`;
 
-      const ld = inviteData as any;
-      inviteLink =
-        ld?.properties?.action_link ||
-        ld?.action_link ||
-        ld?.user?.action_link ||
-        `${appUrl}/login`;
-
-      // Ensure profile + account_user rows exist (user may not have completed signup yet)
-      if (inviteData) {
-        const userId = (ld?.user?.id || ld?.id) as string | undefined;
-        if (userId) {
-          await supabase.from("profiles").upsert(
-            { id: userId, email, full_name: fullName || "", role: "client" },
-            { onConflict: "id" }
-          );
-          await supabase.from("account_users").upsert(
-            { account_id: params.accountId, user_id: userId },
-            { onConflict: "account_id,user_id" }
-          );
-          if (account?.onboarding_job_id) {
-            await supabase.from("project_members").upsert(
-              { job_id: account.onboarding_job_id, user_id: userId, role: "member" },
-              { onConflict: "job_id,user_id" }
-            );
-          }
-        }
-      }
-    } else {
-      // ── Existing user: generate a magic link so they can sign straight in ──
-      const { data: magicData, error: magicErr } = await adminClient.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: { redirectTo },
-      });
-
-      if (magicErr) throw magicErr;
-
-      const ld = magicData as any;
-      inviteLink =
-        ld?.properties?.action_link ||
-        ld?.action_link ||
-        ld?.user?.action_link ||
-        `${appUrl}/login`;
-
-      // Make sure they're linked to this account + project
-      if (existingUser) {
-        await supabase.from("account_users").upsert(
-          { account_id: params.accountId, user_id: existingUser.id },
-          { onConflict: "account_id,user_id" }
+    // Ensure profile + account_user + project_member rows are ready for when they complete signup
+    const newUserId = (ld?.user?.id || ld?.id) as string | undefined;
+    if (newUserId) {
+      await supabase.from("profiles").upsert(
+        { id: newUserId, email, full_name: fullName || "", role: "client" },
+        { onConflict: "id" }
+      );
+      await supabase.from("account_users").upsert(
+        { account_id: params.accountId, user_id: newUserId },
+        { onConflict: "account_id,user_id" }
+      );
+      if (account?.onboarding_job_id) {
+        await supabase.from("project_members").upsert(
+          { job_id: account.onboarding_job_id, user_id: newUserId, role: "member" },
+          { onConflict: "job_id,user_id" }
         );
-        if (account?.onboarding_job_id) {
-          await supabase.from("project_members").upsert(
-            { job_id: account.onboarding_job_id, user_id: existingUser.id, role: "member" },
-            { onConflict: "job_id,user_id" }
-          );
-        }
       }
     }
 
@@ -125,14 +88,9 @@ export async function POST(
     const propertyName = account?.name || "the property";
     const firstName = (fullName || email).split(" ")[0];
 
-    const subject = isNewUser
-      ? `You've been invited to Call Stream AI`
-      : `Your Call Stream AI access link`;
-
-    const ctaText = isNewUser ? "Complete Registration" : "Sign In";
-    const bodyText = isNewUser
-      ? `You've been invited to collaborate on <strong>${propertyName}</strong> on the Call Stream AI Onboarding Platform. Click below to create your account — this link expires in <strong>24 hours</strong>.`
-      : `You've been given access to <strong>${propertyName}</strong> on the Call Stream AI Onboarding Platform. Click below to sign in.`;
+    const subject = `You've been invited to Call Stream AI`;
+    const ctaText = "Complete Registration";
+    const bodyText = `You've been invited to collaborate on <strong>${propertyName}</strong> on the Call Stream AI Onboarding Platform. Click below to create your account and set your password — this link expires in <strong>24 hours</strong>.`;
 
     const html = `
 <!DOCTYPE html>
@@ -161,13 +119,9 @@ export async function POST(
         ${ctaText} →
       </a>
 
-      ${isNewUser ? `
       <p style="margin:28px 0 0;color:#666;font-size:12px;line-height:1.5;">
         This link expires in 24 hours. If you didn't expect this invitation, you can safely ignore it.
-      </p>` : `
-      <p style="margin:28px 0 0;color:#666;font-size:12px;line-height:1.5;">
-        This is a one-time sign-in link. If you didn't expect this, you can safely ignore it.
-      </p>`}
+      </p>
     </div>
 
     <!-- Footer -->
@@ -202,9 +156,7 @@ export async function POST(
       emailId: emailData.id,
       isNewUser,
       inviteLink,
-      message: isNewUser
-        ? `Invite email sent to ${email} — link expires in 24 hours`
-        : `Sign-in email sent to ${email}`,
+      message: `Invite email sent to ${email} — link expires in 24 hours`,
     });
 
   } catch (err: any) {
