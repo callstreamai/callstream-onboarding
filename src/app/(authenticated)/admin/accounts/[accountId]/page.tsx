@@ -36,6 +36,7 @@ export default function AccountDetailPage() {
   // Invite emails
   const [sendingInviteFor, setSendingInviteFor] = useState<string | null>(null);
   const [inviteStatus, setInviteStatus] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!authLoading && !isAdmin) { router.push("/"); return; }
@@ -120,6 +121,9 @@ export default function AccountDetailPage() {
       const data = await res.json();
       if (res.ok) {
         setInviteStatus((prev) => ({ ...prev, [contact.id]: { ok: true, msg: data.message || "Invite sent" } }));
+        if (data.inviteLink) {
+          setInviteLinks((prev) => ({ ...prev, [contact.id]: data.inviteLink }));
+        }
       } else {
         setInviteStatus((prev) => ({ ...prev, [contact.id]: { ok: false, msg: data.error || "Failed to send" } }));
       }
@@ -283,6 +287,28 @@ export default function AccountDetailPage() {
                   }>
                     {inviteStatus[c.id].ok ? "✓ " : "✗ "}{inviteStatus[c.id].msg}
                   </p>
+                )}
+
+                {/* Invite link panel — shown after Send Invite */}
+                {inviteLinks[c.id] && (
+                  <div className="p-3 bg-cs-bg rounded-md border border-cs-accent-purple/30 space-y-2">
+                    <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Invite link for {c.email}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-cs-accent-purple uppercase w-24 flex-shrink-0">Invite Link</span>
+                      <div className="flex-1 text-xs text-cs-text-secondary bg-cs-surface px-2 py-1 rounded truncate">
+                        {inviteLinks[c.id].slice(0, 60)}...
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(inviteLinks[c.id], c.id + "-invite")}
+                        className="flex items-center gap-1 text-[10px] text-cs-accent-purple hover:underline flex-shrink-0"
+                      >
+                        {copied === c.id + "-invite" ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-cs-text-muted">
+                      Copy and send via text or email. Link expires in 24 hours.
+                    </p>
+                  </div>
                 )}
 
                 {/* Generated links panel */}
