@@ -63,6 +63,12 @@
            transition-colors;
   }
 
+  /* Fix date input picker visibility on dark backgrounds */
+  input[type="date"].cs-input {
+    color-scheme: dark;
+  }
+
+
   .cs-btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
            bg-white text-black text-sm font-medium rounded-md
