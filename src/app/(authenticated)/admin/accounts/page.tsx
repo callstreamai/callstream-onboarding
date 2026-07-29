@@ -35,10 +35,14 @@ export default function AdminAccountsPage() {
   async function createAccount(e: React.FormEvent) {
     e.preventDefault();
     setCreating(true);
+    // Normalise property_url — ensure it always has a protocol
+    const normalisedUrl = form.property_url && !form.property_url.match(/^https?:\/\//)
+      ? "https://" + form.property_url
+      : form.property_url;
     const res = await fetch("/api/admin/accounts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, property_url: normalisedUrl }),
     });
     if (res.ok) {
       const data = await res.json();
