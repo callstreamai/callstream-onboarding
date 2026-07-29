@@ -42,8 +42,11 @@ export async function GET(req: NextRequest, { params }: { params: { accountId: s
         unlinkedMatches = allUnlinked.filter((job) => {
           const nameMatch = account.name && job.property_name &&
             job.property_name.toLowerCase().includes(account.name.toLowerCase().split(" ")[0]);
-          const urlMatch = account.property_url && job.property_url &&
-            job.property_url.includes(new URL(account.property_url).hostname);
+          let urlMatch = false;
+          try {
+            urlMatch = !!(account.property_url && job.property_url &&
+              job.property_url.includes(new URL(account.property_url).hostname));
+          } catch { urlMatch = false; }
           return nameMatch || urlMatch;
         });
       }
