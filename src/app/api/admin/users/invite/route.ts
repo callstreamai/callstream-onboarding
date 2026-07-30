@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       const { data: linkData } = await adminClient.auth.admin.generateLink({
         type: "magiclink",
         email,
-        options: { redirectTo: appUrl + "/" },
+        options: { redirectTo: appUrl + "/auth/handle" },
       });
       inviteLink = linkData?.properties?.action_link || appUrl + "/login";
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const { data: inviteData, error: inviteError } = await adminClient.auth.admin.generateLink({
       type: "invite",
       email,
-      options: { redirectTo: appUrl + "/auth/callback" },
+      options: { redirectTo: appUrl + "/auth/handle" },
     });
 
     if (inviteError) throw inviteError;
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     } else if (!resendApiKey) {
       // Fallback: use Supabase built-in invite email (goes via Resend SMTP)
       await adminClient.auth.admin.inviteUserByEmail(email, {
-        redirectTo: appUrl + "/auth/callback",
+        redirectTo: appUrl + "/auth/handle",
         data: { role },
       });
       emailSent = true;
