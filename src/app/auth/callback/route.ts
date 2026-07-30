@@ -52,6 +52,18 @@ export async function GET(request: Request) {
   }
 
   // No server-readable token — must be implicit flow (hash fragment).
-  // Forward to the client-side handler which can read window.location.hash.
-  return NextResponse.redirect(new URL("/auth/handle", appUrl));
+  // IMPORTANT: NextResponse.redirect strips the hash fragment.
+  // Use an HTML page with a JS redirect to preserve the hash for the client handler.
+  return new Response(
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting...</title></head><body>
+    <script>
+      // Preserve the full URL including hash fragment
+      var dest = window.location.hash
+        ? "${appUrl}/auth/handle" + window.location.hash
+        : "${appUrl}/auth/handle" + window.location.search;
+      window.location.replace(dest);
+    </script>
+    </body></html>`,
+    { status: 200, headers: { "Content-Type": "text/html" } }
+  );
 }
