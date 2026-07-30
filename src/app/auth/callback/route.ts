@@ -38,10 +38,16 @@ export async function GET(request: Request) {
     if (!error && data?.user) {
       if (type === "recovery") return NextResponse.redirect(new URL("/auth/reset-password", appUrl));
       const isNew = !data.user.last_sign_in_at || (data.user.created_at === data.user.updated_at);
-      if (type === "invite" || type === "magiclink" && isNew) {
+      if (type === "invite" || (type === "magiclink" && isNew)) {
         return NextResponse.redirect(new URL("/auth/complete-signup", appUrl));
       }
       return NextResponse.redirect(new URL(next || "/", appUrl));
+    }
+
+    // Token verification failed — show a clear error instead of silently landing on login
+    if (error) {
+      const msg = encodeURIComponent(error.message || "invalid_token");
+      return NextResponse.redirect(new URL(`/login?error=${msg}`, appUrl));
     }
   }
 
