@@ -17,35 +17,55 @@ export default function ResetPasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    let cancelled = false;
+
     async function init() {
-      // If there are hash tokens in the URL, route through /auth/handle which
-      // handles setSession() and then redirects back here
+      // PKCE / token_hash: let the secure server route establish the session.
+      const search = window.location.search;
+      const sp = new URLSearchParams(search);
+      if (sp.get("code") || sp.get("token_hash")) {
+        window.location.replace("/auth/callback" + search);
+        return;
+      }
+
+      // Legacy implicit flow: hash tokens -> route through /auth/handle.
       const hash = window.location.hash;
       if (hash && hash.includes("access_token=") && hash.includes("type=recovery")) {
         router.replace("/auth/handle" + hash);
         return;
       }
 
-      // Check for existing session (arrived here after /auth/handle redirect)
+      // Check for an existing session (arrived here after /auth/callback or /auth/handle).
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        setSessionReady(true);
-        setChecking(false);
+        if (!cancelled) { setSessionReady(true); setChecking(false); }
         return;
       }
 
-      // Listen for PASSWORD_RECOVERY event
+      // Listen briefly for the recovery session to attach.
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
+        if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session && !cancelled) {
           setSessionReady(true);
           setChecking(false);
         }
       });
 
-      setChecking(false);
+      // If no session has attached shortly after load, this is a dead link
+      // (expired, already used, or opened without a valid recovery token).
+      // Instead of showing a form with a permanently disabled button, send the
+      // user back to login with a clear message.
+      setTimeout(() => {
+        if (!cancelled && !sessionReady) {
+          subscription.unsubscribe();
+          router.replace("/login?error=" + encodeURIComponent("reset_link_invalid"));
+        }
+      }, 2500);
+
       return () => subscription.unsubscribe();
     }
+
     init();
+    return () => { cancelled = true; };
   }, []);
 
   async function handleReset(e: React.FormEvent) {

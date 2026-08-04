@@ -10,8 +10,19 @@ export default function AuthHandlePage() {
   const [status, setStatus] = useState("Signing you in...");
 
   useEffect(() => {
-    async function handleHash() {
-      // Parse hash fragment — Supabase implicit flow sends tokens here
+    async function handleAuth() {
+      // --- PKCE / token_hash safety net ---------------------------------
+      // If Supabase sent a query-string code (PKCE) or token_hash instead of a
+      // hash fragment, the secure server route /auth/callback must handle it
+      // (it holds the code exchange + cookie set). Forward there immediately.
+      const search = window.location.search;
+      const sp = new URLSearchParams(search);
+      if (sp.get("code") || sp.get("token_hash")) {
+        window.location.replace("/auth/callback" + search);
+        return;
+      }
+
+      // Parse hash fragment — legacy Supabase implicit flow sends tokens here
       const hash = window.location.hash.substring(1);
       if (!hash) {
         setStatus("No auth token found. Redirecting...");
@@ -24,9 +35,21 @@ export default function AuthHandlePage() {
       const refreshToken = params.get("refresh_token");
       const type         = params.get("type") ?? "";
       const error        = params.get("error");
+      const errorCode    = params.get("error_code");
       const errorDesc    = params.get("error_description");
 
       if (error) {
+        // A pre-consumed / expired single-use link (commonly caused by email
+        // security scanners opening the link first) lands here. Give the user a
+        // clear, actionable message instead of silently bouncing to /login.
+        if (errorCode === "otp_expired" || error === "access_denied") {
+          setStatus("This sign-in link has already been used or expired. Redirecting you to sign in with your password...");
+          setTimeout(
+            () => router.push("/login?error=" + encodeURIComponent("link_expired")),
+            2500
+          );
+          return;
+        }
         setStatus("Auth error: " + (errorDesc || error));
         setTimeout(() => router.push("/login?error=" + encodeURIComponent(error)), 2000);
         return;
@@ -71,7 +94,7 @@ export default function AuthHandlePage() {
       router.push("/submissions");
     }
 
-    handleHash();
+    handleAuth();
   }, []);
 
   return (
