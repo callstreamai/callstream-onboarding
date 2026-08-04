@@ -56,7 +56,7 @@ export default function LoginPage() {
       setError(error.message);
     } else {
       setCodeSent(true);
-      setSuccess("We emailed you a 6-digit code. Enter it below to sign in.");
+      setSuccess("We emailed you a sign-in code. Enter it below.");
     }
     setLoading(false);
   }
@@ -195,8 +195,8 @@ export default function LoginPage() {
               </h2>
               <p className="text-sm text-cs-text-secondary mb-6">
                 {codeSent
-                  ? "We sent a 6-digit code to your email. Enter it below."
-                  : "We will email you a 6-digit sign-in code"}
+                  ? "We sent the code we emailed you. Enter it below."
+                  : "We will email you a sign-in code"}
               </p>
 
               {!codeSent ? (
@@ -224,16 +224,16 @@ export default function LoginPage() {
               ) : (
                 <form onSubmit={handleVerifyCode} className="space-y-4">
                   <div>
-                    <label className="cs-label block mb-1.5">6-DIGIT CODE</label>
+                    <label className="cs-label block mb-1.5">SIGN-IN CODE</label>
                     <input
                       type="text"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       pattern="[0-9]*"
-                      maxLength={6}
+                      maxLength={8}
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
-                      placeholder="123456"
+                      placeholder="Enter code"
                       className="cs-input tracking-[0.5em] text-center text-lg"
                       required
                     />
