@@ -56,7 +56,7 @@ export default function LoginPage() {
       setError(error.message);
     } else {
       setCodeSent(true);
-      setSuccess("We emailed you a sign-in code. Enter it below.");
+      setSuccess("We emailed you a Magic Code. Enter it below.");
     }
     setLoading(false);
   }
@@ -169,7 +169,7 @@ export default function LoginPage() {
                   onClick={() => { setMode("magic_link"); resetMagicState(); }}
                   className="w-full text-xs text-cs-accent-blue hover:underline text-center"
                 >
-                  Sign in with email code instead
+                  Sign in with Magic Code instead
                 </button>
                 <button
                   onClick={() => { setMode("reset"); setError(""); setSuccess(""); }}
@@ -191,12 +191,12 @@ export default function LoginPage() {
                 <ArrowLeft size={12} /> Back to password
               </button>
               <h2 className="text-lg font-semibold text-cs-text-primary mb-1">
-                {codeSent ? "Enter your code" : "Sign in with email code"}
+                {codeSent ? "Enter your Magic Code" : "Sign in with Magic Code"}
               </h2>
               <p className="text-sm text-cs-text-secondary mb-6">
                 {codeSent
-                  ? "We sent the code we emailed you. Enter it below."
-                  : "We will email you a sign-in code"}
+                  ? "We sent the Magic Code we emailed you. Enter it below."
+                  : "We will email you a Magic Code"}
               </p>
 
               {!codeSent ? (
@@ -224,7 +224,7 @@ export default function LoginPage() {
               ) : (
                 <form onSubmit={handleVerifyCode} className="space-y-4">
                   <div>
-                    <label className="cs-label block mb-1.5">SIGN-IN CODE</label>
+                    <label className="cs-label block mb-1.5">MAGIC CODE</label>
                     <input
                       type="text"
                       inputMode="numeric"
