@@ -25,8 +25,8 @@ export default function LoginPage() {
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: email.trim(),
+      password: password.trim(),
     });
 
     if (error) {
@@ -48,7 +48,7 @@ export default function LoginPage() {
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: email.trim(),
       options: { shouldCreateUser: false },
     });
 
@@ -68,7 +68,7 @@ export default function LoginPage() {
     setLoading(true);
 
     const { error } = await supabase.auth.verifyOtp({
-      email,
+      email: email.trim(),
       token: code.trim(),
       type: "email",
     });
@@ -88,7 +88,7 @@ export default function LoginPage() {
     setSuccess("");
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/auth/reset-password",
     });
 
