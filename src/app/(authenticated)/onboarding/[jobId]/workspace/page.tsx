@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
+import AdminOnlyProjectPage from "@/components/project/AdminOnlyProjectPage";
 import JobTabs from "@/components/project/JobTabs";
 import CommentFeed from "@/components/project/CommentFeed";
 import {
-  Folder, FileText, Upload, Plus, Users, Send, Copy,
+  Folder, FileText, Upload, Plus,
   CheckCircle2, Clock, X, Check,
   Video, Globe, Trash2, ExternalLink,
 } from "lucide-react";
@@ -38,15 +39,6 @@ interface SpaceLink {
   description: string | null;
   created_at: string;
 }
-
-interface Invitation {
-  id: string;
-  email: string;
-  accepted_at: string | null;
-  created_at: string;
-}
-
-
 
 function formatSize(bytes: number) {
   if (!bytes) return "";
@@ -111,13 +103,9 @@ export default function WorkspacePage() {
   const { user, isAdmin } = useAuth();
 
   const [spaces, setSpaces] = useState<Space[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [commentUsers, setCommentUsers] = useState<any[]>([]);
   const [activeSpace, setActiveSpace] = useState<string | null>(null);
-  const [showInvite, setShowInvite] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteUrl, setInviteUrl] = useState("");
   const [showNewSpace, setShowNewSpace] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState("");
   const [newSpaceDesc, setNewSpaceDesc] = useState("");
@@ -154,16 +142,8 @@ export default function WorkspacePage() {
       }
     }
 
-    if (isAdmin) {
-      const invRes = await fetch("/api/jobs/" + jobId + "/invite");
-      if (invRes.ok) {
-        const invData = await invRes.json();
-        setInvitations(invData.invitations || []);
-      }
-    }
-
     setLoading(false);
-  }, [jobId, user?.id, isAdmin]);
+  }, [jobId, user?.id]);
 
   const loadLinks = useCallback(async (spaceId: string) => {
     const res = await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/links");
@@ -186,30 +166,6 @@ export default function WorkspacePage() {
     loadWorkspace();
     loadComments();
   }, [loadWorkspace, loadComments, loadLinks]);
-
-  async function handleInvite() {
-    if (!inviteEmail.trim()) return;
-    const res = await fetch("/api/jobs/" + jobId + "/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail, invitedBy: user?.id }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setInviteEmail("");
-      loadWorkspace();
-      if (data.emailSent) {
-        setInviteUrl("✓ Invitation email sent to " + (data.invitation?.email || "team member"));
-      } else if (data.inviteUrl) {
-        setInviteUrl(data.inviteUrl);
-      } else {
-        setInviteUrl("✓ Contact added to project");
-      }
-    } else {
-      const err = await res.json();
-      setInviteUrl("Error: " + (err.error || "Failed to send invite"));
-    }
-  }
 
   async function handleAddSpace() {
     if (!newSpaceName.trim()) return;
@@ -289,6 +245,31 @@ export default function WorkspacePage() {
     loadLinks(spaceId);
   }
 
+  async function handleDeleteDocument(spaceId: string, documentId: string) {
+    const doc = spaces
+      .find((space) => space.id === spaceId)
+      ?.space_documents?.find((document) => document.id === documentId);
+
+    if (!doc) return;
+    if (!window.confirm("Delete " + doc.name + "? This cannot be undone.")) return;
+
+    const res = await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/documents?id=" + documentId, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Delete failed" }));
+      setUploadError(err.error || "Delete failed for " + doc.name);
+      return;
+    }
+
+    setSpaces((prev) => prev.map((space) =>
+      space.id === spaceId
+        ? { ...space, space_documents: (space.space_documents || []).filter((document) => document.id !== documentId) }
+        : space
+    ));
+  }
+
   function copyText(text: string, id: string) {
     navigator.clipboard.writeText(text);
     setCopied(id);
@@ -301,6 +282,7 @@ export default function WorkspacePage() {
   const NewIconComp = ICON_MAP[newSpaceIcon] || Folder;
 
   return (
+    <AdminOnlyProjectPage jobId={jobId}>
     <div>
       <JobTabs jobId={jobId} />
 
@@ -312,14 +294,6 @@ export default function WorkspacePage() {
             <p className="text-sm text-cs-text-muted">Upload and organize property knowledge</p>
           </div>
           <div className="flex gap-2">
-            {isAdmin && (
-              <button
-                onClick={() => setShowInvite(!showInvite)}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-cs-border text-cs-text-secondary hover:bg-cs-card"
-              >
-                <Users size={13} /> Invite user
-              </button>
-            )}
             <button
               onClick={() => setShowNewSpace(!showNewSpace)}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-accent-blue/10 text-cs-accent-blue hover:bg-cs-accent-blue/20"
@@ -328,51 +302,6 @@ export default function WorkspacePage() {
             </button>
           </div>
         </div>
-
-        {/* Invite panel */}
-        {showInvite && (
-          <div className="cs-card p-4 space-y-3">
-            <p className="text-xs font-medium text-cs-text-primary">Invite a team member</p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="team@property.com"
-                className="cs-input flex-1"
-              />
-              <button onClick={handleInvite} className="cs-btn-primary text-xs px-3 py-1.5 flex items-center gap-1">
-                <Send size={12} /> Send
-              </button>
-            </div>
-            {inviteUrl && (
-              <div className="flex items-center gap-2 bg-cs-bg p-2 rounded text-xs">
-                <span className="flex-1 text-cs-text-muted truncate">{inviteUrl}</span>
-                <button
-                  onClick={() => copyText(inviteUrl, "invite")}
-                  className="text-cs-accent-blue hover:underline flex items-center gap-1"
-                >
-                  {copied === "invite" ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
-                </button>
-              </div>
-            )}
-            {invitations.length > 0 && (
-              <div className="space-y-1 mt-2">
-                <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Sent invitations</p>
-                {invitations.map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between text-xs py-1">
-                    <span className="text-cs-text-secondary">{inv.email}</span>
-                    {inv.accepted_at ? (
-                      <span className="text-cs-accent-green flex items-center gap-1"><CheckCircle2 size={10} /> Accepted</span>
-                    ) : (
-                      <span className="text-cs-text-muted flex items-center gap-1"><Clock size={10} /> Pending</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* New space form */}
         {showNewSpace && (
@@ -528,7 +457,7 @@ export default function WorkspacePage() {
             {active.space_documents && active.space_documents.length > 0 ? (
               <div className="space-y-2">
                 {active.space_documents.map((doc) => (
-                  <div key={doc.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md">
+                  <div key={doc.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md group">
                     {doc.file_type.startsWith("video/") ? <Video size={14} className="text-cs-text-muted flex-shrink-0" /> : <FileText size={14} className="text-cs-text-muted flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-cs-text-primary truncate">{doc.name}</p>
@@ -541,6 +470,13 @@ export default function WorkspacePage() {
                     ) : (
                       <Clock size={12} className="text-cs-text-muted flex-shrink-0" />
                     )}
+                    <button
+                      onClick={() => handleDeleteDocument(active.id, doc.id)}
+                      className="opacity-0 group-hover:opacity-100 text-cs-text-muted hover:text-cs-accent-red p-1 rounded transition flex-shrink-0"
+                      title="Delete file"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -653,5 +589,6 @@ export default function WorkspacePage() {
         />
       </div>
     </div>
+    </AdminOnlyProjectPage>
   );
 }

@@ -7,7 +7,6 @@ interface BlandVoice {
   id: string;
   name: string;
   description?: string;
-  preview_url?: string;
 }
 
 export default function ReviewPage() {
@@ -17,6 +16,7 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(false);
   const [loadingVoices, setLoadingVoices] = useState(true);
   const [activePreview, setActivePreview] = useState<string | null>(null);
+  const [voiceSearch, setVoiceSearch] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const SAMPLE_PROMPTS = [
@@ -39,17 +39,9 @@ export default function ReviewPage() {
       .finally(() => setLoadingVoices(false));
   }, []);
 
-  async function playVoice(voiceId: string, previewUrl?: string) {
+  async function playVoice(voiceId: string) {
     setActivePreview(voiceId);
     setSelectedVoice(voiceId);
-
-    if (previewUrl) {
-      if (audioRef.current) {
-        audioRef.current.src = previewUrl;
-        audioRef.current.play().catch(() => {});
-      }
-      return;
-    }
 
     const sample = text.trim() || SAMPLE_PROMPTS[0];
     setLoading(true);
@@ -137,14 +129,21 @@ export default function ReviewPage() {
 
       {/* Voice grid */}
       <div className="cs-card p-5 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <label className="cs-label">CHOOSE A VOICE</label>
+        <div className="flex items-center justify-between mb-4 gap-3">
+          <label className="cs-label">CHOOSE A V3 VOICE</label>
           {selectedVoice && (
-            <span className="text-[10px] text-cs-accent-blue">
+            <span className="text-[10px] text-cs-accent-blue flex-shrink-0">
               {voices.find((v) => v.id === selectedVoice)?.name} selected
             </span>
           )}
         </div>
+        <input
+          type="search"
+          value={voiceSearch}
+          onChange={(e) => setVoiceSearch(e.target.value)}
+          placeholder="Search voices..."
+          className="cs-input text-xs w-full mb-4"
+        />
 
         {loadingVoices ? (
           <div className="flex items-center gap-2 text-cs-text-muted text-sm py-6">
@@ -155,13 +154,17 @@ export default function ReviewPage() {
           <p className="text-sm text-cs-text-muted py-4">No voices available. Contact your admin to configure BLAND_API_KEY.</p>
         ) : (
           <div className="grid grid-cols-3 gap-2">
-            {voices.map((v) => {
+            {voices.filter((v) => {
+              const q = voiceSearch.trim().toLowerCase();
+              if (!q) return true;
+              return v.name.toLowerCase().includes(q) || (v.description || "").toLowerCase().includes(q);
+            }).map((v) => {
               const isSelected = selectedVoice === v.id;
               const isPlaying = activePreview === v.id && loading;
               return (
                 <button
                   key={v.id}
-                  onClick={() => playVoice(v.id, v.preview_url)}
+                  onClick={() => playVoice(v.id)}
                   className={
                     "flex items-center justify-between p-3 rounded-lg border text-left transition " +
                     (isSelected

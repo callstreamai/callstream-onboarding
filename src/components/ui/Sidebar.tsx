@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
   LayoutDashboard, FileInput, Mic2, Settings,
-  Users, LogOut, FolderOpen, Building2, CalendarSearch,
+  Users, LogOut, FolderOpen, Building2,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -14,12 +14,16 @@ export function Sidebar() {
   const { profile, isAdmin, signOut } = useAuth();
 
   const submissionsLabel = isAdmin ? "My Submissions" : "My Projects";
-  const mainItems: { label: string; href: string; icon: React.ElementType }[] = [
-    { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    { label: submissionsLabel, href: "/submissions", icon: FolderOpen },
-    { label: "Voice Preview", href: "/voice-preview", icon: Mic2 },
-  ];
-  if (isAdmin) mainItems.splice(1, 0, { label: "Onboarding", href: "/onboarding", icon: FileInput });
+  const mainItems: { label: string; href: string; icon: React.ElementType }[] = isAdmin
+    ? [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard },
+        { label: "Onboarding", href: "/onboarding", icon: FileInput },
+        { label: submissionsLabel, href: "/submissions", icon: FolderOpen },
+        { label: "Voice Preview", href: "/voice-preview", icon: Mic2 },
+      ]
+    : [
+        { label: "Status", href: "/", icon: LayoutDashboard },
+      ];
 
   const NAV_SECTIONS = [
     {
@@ -28,12 +32,6 @@ export function Sidebar() {
     },
     ...(isAdmin
       ? [
-          {
-            label: "TOOLS",
-            items: [
-              { label: "Event Scraper", href: "/tools/event-scraper", icon: CalendarSearch },
-            ],
-          },
           {
             label: "ADMIN",
             items: [

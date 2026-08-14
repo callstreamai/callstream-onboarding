@@ -16,9 +16,9 @@ export default function JobTabs({ jobId, propertyName }: Props) {
 
   const tabs = [
     { label: "Status",        href: "/onboarding/" + jobId + "/status",        icon: Activity,  adminOnly: false },
-    { label: "Workspace",     href: "/onboarding/" + jobId + "/workspace",     icon: FolderOpen, adminOnly: false },
-    { label: "Project",       href: "/onboarding/" + jobId + "/project",       icon: Kanban,    adminOnly: false },
-    { label: "Voice Preview", href: "/onboarding/" + jobId + "/voice-preview", icon: Mic2,      adminOnly: false },
+    { label: "Workspace",     href: "/onboarding/" + jobId + "/workspace",     icon: FolderOpen, adminOnly: true },
+    { label: "Project",       href: "/onboarding/" + jobId + "/project",       icon: Kanban,    adminOnly: true },
+    { label: "Voice Preview", href: "/onboarding/" + jobId + "/voice-preview", icon: Mic2,      adminOnly: true },
   ];
 
   return (

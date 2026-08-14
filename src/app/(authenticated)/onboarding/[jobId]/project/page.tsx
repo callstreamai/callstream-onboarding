@@ -13,6 +13,7 @@ import MilestoneTimeline from "@/components/project/MilestoneTimeline";
 import TaskBoard from "@/components/project/TaskBoard";
 import CommentFeed from "@/components/project/CommentFeed";
 import JobTabs from "@/components/project/JobTabs";
+import AdminOnlyProjectPage from "@/components/project/AdminOnlyProjectPage";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   LayoutList,
@@ -113,69 +114,71 @@ export default function ProjectPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Top nav — back link + tab row */}
-      <JobTabs jobId={jobId} propertyName={jobName} />
+    <AdminOnlyProjectPage jobId={jobId}>
+      <div className="space-y-6">
+        {/* Top nav — back link + tab row */}
+        <JobTabs jobId={jobId} propertyName={jobName} />
 
-      {/* Page header */}
-      <div>
-        <h1 className="text-lg font-semibold text-cs-text-primary">Project Timeline</h1>
-        <p className="text-sm text-cs-text-muted mt-0.5">{jobName}</p>
+        {/* Page header */}
+        <div>
+          <h1 className="text-lg font-semibold text-cs-text-primary">Project Timeline</h1>
+          <p className="text-sm text-cs-text-muted mt-0.5">{jobName}</p>
+        </div>
+
+        {/* Tab bar */}
+        <div className="flex gap-1 border-b border-cs-border pb-0">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={
+                "flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 -mb-px transition " +
+                (tab === t.key
+                  ? "border-cs-accent-blue text-cs-accent-blue"
+                  : "border-transparent text-cs-text-muted hover:text-cs-text-secondary")
+              }
+            >
+              <t.icon size={14} />
+              {t.label}
+              {t.count !== undefined && t.count > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-cs-card text-[10px]">
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {tab === "timeline" && (
+          <MilestoneTimeline
+            milestones={milestones}
+            jobId={jobId}
+            isAdmin={isAdmin}
+            onUpdate={loadProject}
+          />
+        )}
+        {tab === "tasks" && (
+          <TaskBoard
+            tasks={tasks}
+            milestones={milestones}
+            users={users}
+            currentUser={currentUser}
+            jobId={jobId}
+            isAdmin={isAdmin}
+            onUpdate={loadProject}
+          />
+        )}
+        {tab === "comments" && (
+          <CommentFeed
+            comments={comments}
+            users={users}
+            currentUser={currentUser}
+            jobId={jobId}
+            onUpdate={loadProject}
+          />
+        )}
       </div>
-
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-cs-border pb-0">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={
-              "flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 -mb-px transition " +
-              (tab === t.key
-                ? "border-cs-accent-blue text-cs-accent-blue"
-                : "border-transparent text-cs-text-muted hover:text-cs-text-secondary")
-            }
-          >
-            <t.icon size={14} />
-            {t.label}
-            {t.count !== undefined && t.count > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-cs-card text-[10px]">
-                {t.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      {tab === "timeline" && (
-        <MilestoneTimeline
-          milestones={milestones}
-          jobId={jobId}
-          isAdmin={isAdmin}
-          onUpdate={loadProject}
-        />
-      )}
-      {tab === "tasks" && (
-        <TaskBoard
-          tasks={tasks}
-          milestones={milestones}
-          users={users}
-          currentUser={currentUser}
-          jobId={jobId}
-          isAdmin={isAdmin}
-          onUpdate={loadProject}
-        />
-      )}
-      {tab === "comments" && (
-        <CommentFeed
-          comments={comments}
-          users={users}
-          currentUser={currentUser}
-          jobId={jobId}
-          onUpdate={loadProject}
-        />
-      )}
-    </div>
+    </AdminOnlyProjectPage>
   );
 }
