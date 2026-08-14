@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -53,75 +53,85 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
   const [jobName, setJobName] = useState("");
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const loadProject = useCallback(async () => {
     const res = await fetch("/api/jobs/" + jobId + "/project");
-    if (res.ok) {
-      const data = await res.json();
-      setMilestones(data.milestones);
-      setTasks(data.tasks);
-      setComments(data.comments);
+    if (!res.ok) return;
 
-      // If no milestones yet and user is admin, initialize defaults
-      if (data.milestones.length === 0) {
-        const { data: { user } } = await supabase.auth.getUser();
-        const userId = user?.id || "";
-        const initRes = await fetch("/api/jobs/" + jobId + "/milestones", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-user-id": userId },
-          body: JSON.stringify({ initDefaults: true, milestones: DEFAULT_MILESTONES }),
-        });
-        if (initRes.ok) {
-          const initData = await initRes.json();
-          setMilestones(initData.milestones);
-        }
+    const data = await res.json();
+    setMilestones(data.milestones || []);
+    setTasks(data.tasks || []);
+    setComments(data.comments || []);
+
+    // If no milestones yet and user is admin, initialize defaults.
+    if ((data.milestones || []).length === 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || "";
+      const initRes = await fetch("/api/jobs/" + jobId + "/milestones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ initDefaults: true, milestones: DEFAULT_MILESTONES }),
+      });
+      if (initRes.ok) {
+        const initData = await initRes.json();
+        setMilestones(initData.milestones || []);
       }
     }
-    setLoading(false);
-  }, [jobId, supabase.auth]);
+  }, [jobId, supabase]);
+
+  const loadDocuments = useCallback(async () => {
+    const spacesRes = await fetch("/api/jobs/" + jobId + "/spaces");
+    if (!spacesRes.ok) return;
+
+    const spacesData = await spacesRes.json();
+    const docs = (spacesData.spaces || []).flatMap((space: any) =>
+      (space.space_documents || []).map((doc: any) => ({
+        id: doc.id,
+        name: doc.name,
+        file_name: doc.file_name,
+        file_type: doc.file_type,
+        space_name: space.name,
+      }))
+    );
+    setDocuments(docs);
+  }, [jobId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function init() {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
+
+      const usersPromise = fetch("/api/users").then((r) => r.ok ? r.json() : { users: [] });
+      const jobPromise = fetch("/api/jobs/" + jobId).then((r) => r.ok ? r.json() : null);
+      const projectPromise = loadProject();
+      const docsPromise = loadDocuments();
+
+      const [usersData, jobData] = await Promise.all([usersPromise, jobPromise, projectPromise, docsPromise]);
+      if (cancelled) return;
+
+      const fetchedUsers = usersData.users || [];
+      setUsers(fetchedUsers);
       if (user) {
-        const usersRes = await fetch("/api/users");
-        if (usersRes.ok) {
-          const usersData = await usersRes.json();
-          setUsers(usersData.users);
-          const me = usersData.users.find((u: UserProfile) => u.id === user.id);
-          if (me) {
-            setCurrentUser(me);
-            setIsAdmin(me.role === "admin");
-          }
+        const me = fetchedUsers.find((u: UserProfile) => u.id === user.id);
+        if (me) {
+          setCurrentUser(me);
+          setIsAdmin(me.role === "admin");
         }
       }
 
-      const jobRes = await fetch("/api/jobs/" + jobId);
-      if (jobRes.ok) {
-        const jobData = await jobRes.json();
+      if (jobData) {
         setJobName(jobData.property_name || jobData.property_url || jobData.id?.slice(0, 8) || "Project");
       }
 
-      await loadProject();
-
-      const spacesRes = await fetch("/api/jobs/" + jobId + "/spaces");
-      if (spacesRes.ok) {
-        const spacesData = await spacesRes.json();
-        const docs = (spacesData.spaces || []).flatMap((space: any) =>
-          (space.space_documents || []).map((doc: any) => ({
-            id: doc.id,
-            name: doc.name,
-            file_name: doc.file_name,
-            file_type: doc.file_type,
-            space_name: space.name,
-          }))
-        );
-        setDocuments(docs);
-      }
+      setLoading(false);
     }
+
     init();
-  }, [jobId, loadProject, supabase.auth]);
+    return () => { cancelled = true; };
+  }, [jobId, loadProject, loadDocuments, supabase]);
 
   if (loading) {
     return (

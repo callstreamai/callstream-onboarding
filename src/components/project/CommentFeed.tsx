@@ -91,7 +91,7 @@ export default function CommentFeed({ comments, users, currentUser, jobId, onUpd
   }
 
   async function sendComment() {
-    if (!body.trim() || !currentUser) return;
+    if (!body.trim()) return;
     setSending(true);
     setError("");
 

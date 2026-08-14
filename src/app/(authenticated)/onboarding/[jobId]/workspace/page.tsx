@@ -100,7 +100,7 @@ function IconPicker({
 export default function WorkspacePage() {
   const params = useParams();
   const jobId = params.jobId as string;
-  const { user, isAdmin } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
 
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [comments, setComments] = useState<any[]>([]);
@@ -165,7 +165,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     loadWorkspace();
     loadComments();
-  }, [loadWorkspace, loadComments, loadLinks]);
+  }, [loadWorkspace, loadComments]);
 
   async function handleAddSpace() {
     if (!newSpaceName.trim()) return;
@@ -583,7 +583,12 @@ export default function WorkspacePage() {
         <CommentFeed
           comments={comments}
           users={commentUsers}
-          currentUser={user ? { id: user.id, email: user.email || "", full_name: user.email || "", role: isAdmin ? "admin" : "member" } : null}
+          currentUser={user ? {
+            id: user.id,
+            email: user.email || profile?.email || "",
+            full_name: profile?.full_name || user.email || "",
+            role: profile?.role || (isAdmin ? "admin" : "member"),
+          } : null}
           jobId={jobId}
           onUpdate={loadComments}
         />

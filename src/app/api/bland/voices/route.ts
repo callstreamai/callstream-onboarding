@@ -20,6 +20,23 @@ function isExcluded(name: string): boolean {
   if (!name || /test/i.test(name)) return true;
   if (name === "French 1") return true;
   if (/[\u4E00-\u9FFF]/.test(name)) return true;
+
+  const normalized = name.toLowerCase();
+  const businessOrCustomTerms = [
+    "vision",
+    "insurance",
+    "conversational",
+    "sales",
+    "hpp",
+    "voice_",
+    "_voice",
+  ];
+
+  if (businessOrCustomTerms.some((term) => normalized.includes(term))) return true;
+  if (name.includes("|")) return true;
+  if (name.includes("_")) return true;
+  if (/\b[a-z]+\s+[a-z]\.$/i.test(name)) return true;
+
   return false;
 }
 
