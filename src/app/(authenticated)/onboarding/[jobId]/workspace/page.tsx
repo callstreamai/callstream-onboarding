@@ -447,11 +447,32 @@ export default function WorkspacePage() {
                     }
                   }}
                   className={
-                    "w-full cs-card p-4 text-left transition hover:border-cs-accent-blue/50 cursor-pointer " +
+                    "relative w-full cs-card p-4 text-left transition hover:border-cs-accent-blue/50 cursor-pointer " +
                     (activeSpace === space.id ? "border-cs-accent-blue" : "")
                   }
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); beginEditSpace(space); }}
+                      className="w-7 h-7 rounded-md bg-cs-bg/90 border border-cs-border text-cs-text-muted hover:text-cs-accent-blue hover:border-cs-accent-blue/50 flex items-center justify-center transition"
+                      title="Edit space"
+                      aria-label={`Edit ${space.name}`}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteSpace(space); }}
+                      disabled={deletingSpaceId === space.id}
+                      className="w-7 h-7 rounded-md bg-cs-bg/90 border border-cs-border text-cs-text-muted hover:text-cs-accent-red hover:border-cs-accent-red/50 flex items-center justify-center transition disabled:opacity-50"
+                      title="Delete space"
+                      aria-label={`Delete ${space.name}`}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="flex items-start justify-between gap-12 mb-2">
                     {/* Icon — click to change */}
                     <div
                       onClick={(e) => {
@@ -463,7 +484,7 @@ export default function WorkspacePage() {
                     >
                       <IconComp size={16} className="text-cs-accent-blue" />
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 pr-16">
                       {docCount > 0 && (
                         <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
                           {docCount} file{docCount !== 1 ? "s" : ""}
@@ -474,25 +495,6 @@ export default function WorkspacePage() {
                           <Globe size={9} />{(spaceLinks[space.id] || []).length}
                         </span>
                       )}
-                      <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); beginEditSpace(space); }}
-                          className="text-cs-text-muted hover:text-cs-accent-blue p-0.5 rounded"
-                          title="Edit space"
-                        >
-                          <Pencil size={11} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteSpace(space); }}
-                          disabled={deletingSpaceId === space.id}
-                          className="text-cs-text-muted hover:text-cs-accent-red p-0.5 rounded disabled:opacity-50"
-                          title="Delete space"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </span>
                     </div>
                   </div>
                   <h3 className="text-sm font-medium text-cs-text-primary">{space.name}</h3>
