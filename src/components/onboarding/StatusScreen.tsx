@@ -14,6 +14,7 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  FileJson,
   Globe,
   ArrowRight,
   Activity,
@@ -182,7 +183,29 @@ export function StatusScreen({ jobId }: Props) {
       </div>
 
       {/* 3-column summary grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+        {/* Extraction card */}
+        <Link
+          href={`/onboarding/${jobId}/extraction`}
+          className="cs-card p-5 hover:border-cs-accent-blue/40 transition group"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 rounded-lg bg-cs-accent-blue/10 flex items-center justify-center">
+              <FileJson size={16} className="text-cs-accent-blue" />
+            </div>
+            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition" />
+          </div>
+          <h3 className="text-sm font-medium text-cs-text-primary mb-1">Extraction</h3>
+          <p className="text-xs text-cs-text-muted">
+            {job.extraction_status === "complete" ? "View and download JSON or Markdown" : "Extraction output will appear here"}
+          </p>
+          {job.extraction_confidence !== null && job.extraction_confidence !== undefined && (
+            <p className="text-[11px] text-cs-accent-green mt-2">
+              {Math.round(Number(job.extraction_confidence) * 100)}% confidence
+            </p>
+          )}
+        </Link>
 
         {/* Workspace card */}
         <Link

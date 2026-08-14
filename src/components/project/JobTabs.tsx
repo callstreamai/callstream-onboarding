@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, FolderOpen, Kanban, Mic2, ArrowLeft } from "lucide-react";
+import { Activity, FolderOpen, Kanban, Mic2, ArrowLeft, FileJson } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 interface Props {
@@ -16,6 +16,7 @@ export default function JobTabs({ jobId, propertyName }: Props) {
 
   const tabs = [
     { label: "Status",        href: "/onboarding/" + jobId + "/status",        icon: Activity,  adminOnly: false },
+    { label: "Extraction",    href: "/onboarding/" + jobId + "/extraction",    icon: FileJson,  adminOnly: false },
     { label: "Workspace",     href: "/onboarding/" + jobId + "/workspace",     icon: FolderOpen, adminOnly: true },
     { label: "Project",       href: "/onboarding/" + jobId + "/project",       icon: Kanban,    adminOnly: true },
     { label: "Voice Preview", href: "/onboarding/" + jobId + "/voice-preview", icon: Mic2,      adminOnly: true },
