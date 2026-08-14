@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { Play, Loader2, Volume2, Mic } from "lucide-react";
 import JobTabs from "@/components/project/JobTabs";
-import AdminOnlyProjectPage from "@/components/project/AdminOnlyProjectPage";
+import ProjectAccessPage from "@/components/project/ProjectAccessPage";
 
 interface BlandVoice {
   id: string;
@@ -93,7 +93,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <AdminOnlyProjectPage jobId={jobId}>
+    <ProjectAccessPage jobId={jobId}>
       <div className="max-w-4xl">
         {/* Top nav */}
         <JobTabs jobId={jobId} />
@@ -227,6 +227,6 @@ export default function ReviewPage() {
 
         <audio ref={audioRef} onEnded={() => setActivePreview(null)} className="hidden" />
       </div>
-    </AdminOnlyProjectPage>
+    </ProjectAccessPage>
   );
 }

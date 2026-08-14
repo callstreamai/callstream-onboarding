@@ -1,95 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
+import { ensureContactPortalUser } from "@/lib/provisionContactUser";
 
 export async function POST(req: NextRequest, { params }: { params: { accountId: string } }) {
   try {
     const { email, fullName } = await req.json();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://launch.callstreamai.com";
-
-    const adminClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
     const supabase = createServiceClient();
 
-    // Check if user already exists
-    const { data: usersData } = await adminClient.auth.admin.listUsers();
-    let existingUser = usersData?.users?.find((u: any) => u.email === email);
-
-    if (!existingUser) {
-      const tempPassword = crypto.randomUUID().slice(0, 20) + "!Aa1";
-      const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: { full_name: fullName || "" },
-      });
-
-      if (createErr) {
-        return NextResponse.json({ error: createErr.message }, { status: 400 });
-      }
-      existingUser = newUser?.user || null;
-    } else {
-      if (!existingUser.email_confirmed_at) {
-        await adminClient.auth.admin.updateUserById(existingUser.id, {
-          email_confirm: true,
-        });
-      }
+    if (!email) {
+      return NextResponse.json({ error: "Email required" }, { status: 400 });
     }
 
-    if (!existingUser) {
-      return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
-    }
-
-    // Ensure profile exists
-    await supabase.from("profiles").upsert({
-      id: existingUser.id,
+    const provisioned = await ensureContactPortalUser({
+      accountId: params.accountId,
       email,
-      full_name: fullName || "",
-      role: "client",
-    }, { onConflict: "id" });
+      fullName,
+    });
 
-    // Link user to account
-    await supabase.from("account_users").upsert({
-      account_id: params.accountId,
-      user_id: existingUser.id,
-    }, { onConflict: "account_id,user_id" });
-
-    // Get the account
     const { data: account } = await supabase
       .from("accounts")
-      .select("onboarding_job_id, name")
+      .select("name")
       .eq("id", params.accountId)
       .single();
 
-    // Add as project member if job exists
-    if (account?.onboarding_job_id) {
-      await supabase.from("project_members").upsert({
-        job_id: account.onboarding_job_id,
-        user_id: existingUser.id,
-        role: "member",
-      }, { onConflict: "job_id,user_id" }).then(() => {});
-    }
-
-    // Build onboarding URL
-    let onboardingUrl = appUrl;
-    if (account?.onboarding_job_id) {
-      onboardingUrl = appUrl + "/onboarding/" + account.onboarding_job_id + "/workspace";
-    }
-
+    const firstJobId = provisioned.linkedJobs[0] || null;
     const loginUrl = appUrl + "/login";
+    const onboardingUrl = firstJobId ? appUrl + "/onboarding/" + firstJobId + "/workspace" : loginUrl;
 
     return NextResponse.json({
       success: true,
-      userId: existingUser.id,
+      userId: provisioned.user?.id,
       magicLink: loginUrl,
-      onboardingUrl,
       loginUrl,
+      onboardingUrl,
+      linkedJobs: provisioned.linkedJobs,
       propertyName: account?.name || "",
     });
-
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

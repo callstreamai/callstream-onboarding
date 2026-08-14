@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
-import { ArrowRight, Building2, Activity, FileInput, ClipboardCheck, FolderOpen, FileText, Globe } from "lucide-react";
+import { ArrowRight, Building2, Activity, FileInput, ClipboardCheck, FolderOpen, FileText, Globe, Kanban, Mic2 } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 
 interface Job {
@@ -225,6 +225,16 @@ export default function DashboardPage() {
                         className="cs-btn-secondary text-sm flex-1 justify-center">
                         <FolderOpen size={14} />
                         Workspace
+                      </Link>
+                      <Link href={"/onboarding/" + job.id + "/project"}
+                        className="cs-btn-secondary text-sm flex-1 justify-center">
+                        <Kanban size={14} />
+                        Project
+                      </Link>
+                      <Link href={"/onboarding/" + job.id + "/voice-preview"}
+                        className="cs-btn-secondary text-sm flex-1 justify-center">
+                        <Mic2 size={14} />
+                        Voice
                       </Link>
                     </div>
                   </div>

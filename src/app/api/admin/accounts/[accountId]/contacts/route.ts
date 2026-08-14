@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { ensureContactPortalUser } from "@/lib/provisionContactUser";
 
 export async function POST(
   req: NextRequest,
@@ -24,9 +25,22 @@ export async function POST(
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ contact });
-  } catch (err) {
-    return NextResponse.json({ error: "Failed to create contact" }, { status: 500 });
+
+    let portalUser = null;
+    let linkedJobs: string[] = [];
+    if (contact.email) {
+      const provisioned = await ensureContactPortalUser({
+        accountId: params.accountId,
+        email: contact.email,
+        fullName: contact.full_name,
+      });
+      portalUser = provisioned.user ? { id: provisioned.user.id, email: provisioned.user.email } : null;
+      linkedJobs = provisioned.linkedJobs;
+    }
+
+    return NextResponse.json({ contact, portalUser, linkedJobs });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed to create contact" }, { status: 500 });
   }
 }
 

@@ -13,7 +13,7 @@ import MilestoneTimeline from "@/components/project/MilestoneTimeline";
 import TaskBoard from "@/components/project/TaskBoard";
 import CommentFeed from "@/components/project/CommentFeed";
 import JobTabs from "@/components/project/JobTabs";
-import AdminOnlyProjectPage from "@/components/project/AdminOnlyProjectPage";
+import ProjectAccessPage from "@/components/project/ProjectAccessPage";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   LayoutList,
@@ -148,7 +148,7 @@ export default function ProjectPage() {
   ];
 
   return (
-    <AdminOnlyProjectPage jobId={jobId}>
+    <ProjectAccessPage jobId={jobId}>
       <div className="space-y-6">
         {/* Top nav — back link + tab row */}
         <JobTabs jobId={jobId} propertyName={jobName} />
@@ -214,6 +214,6 @@ export default function ProjectPage() {
           />
         )}
       </div>
-    </AdminOnlyProjectPage>
+    </ProjectAccessPage>
   );
 }
