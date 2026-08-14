@@ -98,7 +98,7 @@ export default function AdminUsersPage() {
     setLoadingDetail(true);
     setUserDetail(null);
     try {
-      const res = await fetch("/api/admin/user-detail/" + userId);
+      const res = await fetch("/api/admin/user-detail?userId=" + userId);
       const data = await res.json();
       if (res.ok) setUserDetail(data);
       else setUserDetail({ error: data.error || "Failed to load user detail" });
