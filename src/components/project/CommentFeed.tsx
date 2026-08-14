@@ -25,6 +25,7 @@ export default function CommentFeed({ comments, users, currentUser, jobId, onUpd
   const [mentionQuery, setMentionQuery] = useState("");
   const [cursorPos, setCursorPos] = useState(0);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Mention list: always include @CallStreamAI, plus all users
@@ -92,22 +93,34 @@ export default function CommentFeed({ comments, users, currentUser, jobId, onUpd
   async function sendComment() {
     if (!body.trim() || !currentUser) return;
     setSending(true);
+    setError("");
 
     const mentions = extractMentions(body);
 
-    await fetch("/api/jobs/" + jobId + "/comments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        body,
-        authorId: currentUser.id,
-        mentions,
-      }),
-    });
+    try {
+      const res = await fetch("/api/jobs/" + jobId + "/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body,
+          mentions,
+        }),
+      });
 
-    setBody("");
-    setSending(false);
-    onUpdate();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Failed to post comment" }));
+        setError(data.error || "Failed to post comment");
+        return;
+      }
+
+      setBody("");
+      setShowMentions(false);
+      onUpdate();
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSending(false);
+    }
   }
 
   function renderBody(text: string) {
@@ -180,6 +193,7 @@ export default function CommentFeed({ comments, users, currentUser, jobId, onUpd
             {sending ? "Sending..." : "Send"}
           </button>
         </div>
+        {error && <p className="text-xs text-cs-accent-red">{error}</p>}
       </div>
 
       {/* Comments */}

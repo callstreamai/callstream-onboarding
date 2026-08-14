@@ -12,6 +12,7 @@ import {
   Clock,
   XCircle,
   Trash2,
+  FileText,
 } from "lucide-react";
 
 interface UserProfile {
@@ -21,6 +22,14 @@ interface UserProfile {
   role: string;
 }
 
+interface UploadedDocument {
+  id: string;
+  name: string;
+  file_name: string;
+  space_name?: string;
+  file_type?: string;
+}
+
 interface Props {
   tasks: Task[];
   milestones: Milestone[];
@@ -28,6 +37,7 @@ interface Props {
   currentUser: UserProfile | null;
   jobId: string;
   isAdmin: boolean;
+  documents?: UploadedDocument[];
   onUpdate: () => void;
 }
 
@@ -45,7 +55,7 @@ const PRIORITY_CONFIG: Record<TaskPriority, { color: string; label: string }> = 
   urgent: { color: "text-cs-accent-red", label: "Urgent" },
 };
 
-export default function TaskBoard({ tasks, milestones, users, currentUser, jobId, isAdmin, onUpdate }: Props) {
+export default function TaskBoard({ tasks, milestones, users, currentUser, jobId, isAdmin, documents = [], onUpdate }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -53,7 +63,43 @@ export default function TaskBoard({ tasks, milestones, users, currentUser, jobId
   const [milestone, setMilestone] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [dueDate, setDueDate] = useState("");
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [filter, setFilter] = useState<"all" | "mine" | "open">("all");
+
+  function buildDescription() {
+    const base = description.trim();
+    const selected = documents.filter((doc) => selectedDocuments.includes(doc.id));
+    if (selected.length === 0) return base || null;
+
+    const docLines = selected.map((doc) =>
+      "- " + (doc.space_name ? doc.space_name + " / " : "") + (doc.name || doc.file_name) + " [doc:" + doc.id + "]"
+    );
+
+    return [base, "Uploaded documents:", ...docLines].filter(Boolean).join("\n");
+  }
+
+  function splitDocumentSection(text: string | null) {
+    if (!text) return { body: "", docs: [] as { label: string; id: string | null }[] };
+    const marker = "Uploaded documents:";
+    const idx = text.indexOf(marker);
+    if (idx === -1) return { body: text, docs: [] as { label: string; id: string | null }[] };
+
+    const body = text.slice(0, idx).trim();
+    const docText = text.slice(idx + marker.length).trim();
+    const docs = docText
+      .split("\n")
+      .map((line) => line.replace(/^-\s*/, "").trim())
+      .filter(Boolean)
+      .map((line) => {
+        const match = line.match(/\s*\[doc:([^\]]+)\]\s*$/);
+        return {
+          label: match ? line.replace(match[0], "").trim() : line,
+          id: match?.[1] || null,
+        };
+      });
+
+    return { body, docs };
+  }
 
   async function createTask() {
     if (!title.trim()) return;
@@ -62,7 +108,7 @@ export default function TaskBoard({ tasks, milestones, users, currentUser, jobId
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title,
-        description: description || null,
+        description: buildDescription(),
         assigned_to: assignee || null,
         created_by: currentUser?.id || null,
         milestone_id: milestone || null,
@@ -76,6 +122,7 @@ export default function TaskBoard({ tasks, milestones, users, currentUser, jobId
     setMilestone("");
     setPriority("medium");
     setDueDate("");
+    setSelectedDocuments([]);
     setShowAdd(false);
     onUpdate();
   }
@@ -186,6 +233,35 @@ export default function TaskBoard({ tasks, milestones, users, currentUser, jobId
               <label className="cs-label block mb-1">DUE DATE</label>
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="cs-input" />
             </div>
+            <div>
+              <label className="cs-label block mb-1">UPLOADED DOCUMENTS</label>
+              {documents.length === 0 ? (
+                <p className="text-xs text-cs-text-muted bg-cs-bg border border-cs-border rounded-md px-3 py-2">
+                  No uploaded documents available yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto bg-cs-bg border border-cs-border rounded-md p-2">
+                  {documents.map((doc) => (
+                    <label key={doc.id} className="flex items-start gap-2 text-xs text-cs-text-secondary cursor-pointer hover:text-cs-text-primary">
+                      <input
+                        type="checkbox"
+                        checked={selectedDocuments.includes(doc.id)}
+                        onChange={(e) => {
+                          setSelectedDocuments((prev) =>
+                            e.target.checked ? [...prev, doc.id] : prev.filter((id) => id !== doc.id)
+                          );
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate">{doc.name || doc.file_name}</span>
+                        {doc.space_name && <span className="block text-[10px] text-cs-text-muted truncate">{doc.space_name}</span>}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex gap-2">
             <button onClick={createTask} className="cs-btn-primary text-xs px-3 py-1.5">Create task</button>
@@ -207,6 +283,8 @@ export default function TaskBoard({ tasks, milestones, users, currentUser, jobId
             const StatusIcon = st.icon;
             const overdue = isOverdue(task);
 
+            const parsedDescription = splitDocumentSection(task.description);
+
             return (
               <div key={task.id} className="cs-card p-4">
                 <div className="flex items-start gap-3">
@@ -227,40 +305,56 @@ export default function TaskBoard({ tasks, milestones, users, currentUser, jobId
                   </button>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className={
-                        "text-sm font-medium " +
-                        (task.status === "done" ? "line-through text-cs-text-muted" : "text-cs-text-primary")
-                      }>
-                        {task.title}
-                      </h4>
-                      <span className={"text-[10px] " + pr.color}>
-                        <Flag size={10} className="inline mr-0.5" />{pr.label}
-                      </span>
-                    </div>
+                    {(() => {
+                      return (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <h4 className={
+                              "text-sm font-medium " +
+                              (task.status === "done" ? "line-through text-cs-text-muted" : "text-cs-text-primary")
+                            }>
+                              {task.title}
+                            </h4>
+                            <span className={"text-[10px] " + pr.color}>
+                              <Flag size={10} className="inline mr-0.5" />{pr.label}
+                            </span>
+                          </div>
 
-                    {task.description && (
-                      <p className="text-xs text-cs-text-muted mt-0.5 line-clamp-1">{task.description}</p>
-                    )}
+                          {parsedDescription.body && (
+                            <p className="text-xs text-cs-text-muted mt-0.5 whitespace-pre-wrap line-clamp-2">{parsedDescription.body}</p>
+                          )}
 
-                    <div className="flex items-center gap-3 mt-2 text-[10px] text-cs-text-muted flex-wrap">
-                      {task.assignee_name && (
-                        <span className="flex items-center gap-1">
-                          <User size={10} /> {task.assignee_name}
-                        </span>
-                      )}
-                      {task.due_date && (
-                        <span className={"flex items-center gap-1 " + (overdue ? "text-cs-accent-red" : "")}>
-                          <Calendar size={10} /> {task.due_date}
-                          {overdue && " (overdue)"}
-                        </span>
-                      )}
-                      {task.milestone_id && (
-                        <span className="text-cs-accent-purple">
-                          {milestones.find((m) => m.id === task.milestone_id)?.name}
-                        </span>
-                      )}
-                    </div>
+                          {parsedDescription.docs.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {parsedDescription.docs.map((doc, i) => (
+                                <span key={(doc.id || doc.label) + i} className="inline-flex items-center gap-1 text-[10px] text-cs-accent-blue bg-cs-accent-blue/10 rounded-full px-2 py-0.5">
+                                  <FileText size={10} /> {doc.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-3 mt-2 text-[10px] text-cs-text-muted flex-wrap">
+                            {task.assignee_name && (
+                              <span className="flex items-center gap-1">
+                                <User size={10} /> {task.assignee_name}
+                              </span>
+                            )}
+                            {task.due_date && (
+                              <span className={"flex items-center gap-1 " + (overdue ? "text-cs-accent-red" : "")}>
+                                <Calendar size={10} /> {task.due_date}
+                                {overdue && " (overdue)"}
+                              </span>
+                            )}
+                            {task.milestone_id && (
+                              <span className="text-cs-accent-purple">
+                                {milestones.find((m) => m.id === task.milestone_id)?.name}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Delete — only creator or admin */}

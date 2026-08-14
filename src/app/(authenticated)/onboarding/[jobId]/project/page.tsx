@@ -30,6 +30,14 @@ interface UserProfile {
   role: string;
 }
 
+interface UploadedDocument {
+  id: string;
+  name: string;
+  file_name: string;
+  file_type?: string;
+  space_name?: string;
+}
+
 export default function ProjectPage() {
   const params = useParams();
   const jobId = params.jobId as string;
@@ -39,6 +47,7 @@ export default function ProjectPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,6 +104,21 @@ export default function ProjectPage() {
       }
 
       await loadProject();
+
+      const spacesRes = await fetch("/api/jobs/" + jobId + "/spaces");
+      if (spacesRes.ok) {
+        const spacesData = await spacesRes.json();
+        const docs = (spacesData.spaces || []).flatMap((space: any) =>
+          (space.space_documents || []).map((doc: any) => ({
+            id: doc.id,
+            name: doc.name,
+            file_name: doc.file_name,
+            file_type: doc.file_type,
+            space_name: space.name,
+          }))
+        );
+        setDocuments(docs);
+      }
     }
     init();
   }, [jobId, loadProject, supabase.auth]);
@@ -166,6 +190,7 @@ export default function ProjectPage() {
             currentUser={currentUser}
             jobId={jobId}
             isAdmin={isAdmin}
+            documents={documents}
             onUpdate={loadProject}
           />
         )}
