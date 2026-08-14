@@ -50,6 +50,7 @@ export function StatusScreen({ jobId }: Props) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [recentComments, setRecentComments] = useState<RecentComment[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceSummary>({ spaces: 0, documents: 0, links: 0 });
+  const [extractionMeta, setExtractionMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,11 +59,12 @@ export function StatusScreen({ jobId }: Props) {
 
   async function loadAll() {
     try {
-      const [jobRes, projectRes, commentsRes, spacesRes] = await Promise.all([
+      const [jobRes, projectRes, commentsRes, spacesRes, extractionRes] = await Promise.all([
         fetch(`/api/jobs/${jobId}`),
         fetch(`/api/jobs/${jobId}/project`),
         fetch(`/api/jobs/${jobId}/comments`),
         fetch(`/api/jobs/${jobId}/spaces`),
+        fetch(`/api/jobs/${jobId}/extraction`),
       ]);
 
       if (jobRes.ok) {
@@ -83,6 +85,10 @@ export function StatusScreen({ jobId }: Props) {
         const spaces = d.spaces || [];
         const docs = spaces.reduce((n: number, s: any) => n + (s.space_documents?.length || 0), 0);
         setWorkspace({ spaces: spaces.length, documents: docs, links: 0 });
+      }
+      if (extractionRes.ok) {
+        const d = await extractionRes.json();
+        setExtractionMeta(d.meta || null);
       }
     } finally {
       setLoading(false);
@@ -198,8 +204,17 @@ export function StatusScreen({ jobId }: Props) {
           </div>
           <h3 className="text-sm font-medium text-cs-text-primary mb-1">Extraction</h3>
           <p className="text-xs text-cs-text-muted">
-            {job.extraction_status === "complete" ? "View and download JSON or Markdown" : "Extraction output will appear here"}
+            {extractionMeta?.job_marked_complete && !extractionMeta?.has_extraction_rows
+              ? "Complete status, but structured rows are missing"
+              : job.extraction_status === "complete"
+              ? "View and download JSON or Markdown"
+              : "Extraction output will appear here"}
           </p>
+          {extractionMeta?.job_marked_complete && !extractionMeta?.has_extraction_rows && (
+            <p className="text-[11px] text-cs-accent-orange mt-2">
+              Source manifest available →
+            </p>
+          )}
           {job.extraction_confidence !== null && job.extraction_confidence !== undefined && (
             <p className="text-[11px] text-cs-accent-green mt-2">
               {Math.round(Number(job.extraction_confidence) * 100)}% confidence

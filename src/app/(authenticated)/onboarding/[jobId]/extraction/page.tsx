@@ -14,6 +14,13 @@ interface ExtractionPayload {
     web_pages: any[];
     files: any[];
   };
+  meta?: {
+    has_property_data: boolean;
+    has_fields: boolean;
+    has_extraction_rows: boolean;
+    job_marked_complete: boolean;
+    source_counts: { web_pages: number; files: number };
+  };
   generated_at: string;
 }
 
@@ -84,6 +91,8 @@ export default function ExtractionPage() {
 
   const propertyName = data?.property_data?.property_name || data?.job?.property_name || data?.job?.property_url || "Extraction";
   const confidence = data?.property_data?.confidence_score ?? data?.job?.extraction_confidence;
+  const hasExtractionRows = Boolean(data?.meta?.has_extraction_rows ?? (data?.property_data || (data?.fields || []).length > 0));
+  const jobMarkedComplete = Boolean(data?.meta?.job_marked_complete);
 
   if (loading) {
     return <div className="flex justify-center py-20"><Spinner size={28} /></div>;
@@ -102,7 +111,7 @@ export default function ExtractionPage() {
     );
   }
 
-  if (!data?.property_data && (!data?.fields || data.fields.length === 0)) {
+  if (!data?.property_data && (!data?.fields || data.fields.length === 0) && !data?.meta?.job_marked_complete) {
     return (
       <div>
         <JobTabs jobId={jobId} />
@@ -137,6 +146,14 @@ export default function ExtractionPage() {
               <a href={data.job.property_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-cs-text-muted hover:text-cs-accent-blue mt-1">
                 <Globe size={11} /> {data.job.property_url}
               </a>
+            )}
+            {!hasExtractionRows && jobMarkedComplete && (
+              <div className="mt-4 flex items-start gap-2 rounded-lg border border-cs-accent-orange/30 bg-cs-accent-orange/10 px-3 py-2">
+                <AlertCircle size={14} className="text-cs-accent-orange mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-cs-accent-orange leading-relaxed">
+                  This job is marked extraction complete, but the structured extraction rows are missing. Showing the source manifest available for re-extraction/review.
+                </p>
+              </div>
             )}
           </div>
 
@@ -208,41 +225,67 @@ export default function ExtractionPage() {
       </div>
 
       {view === "fields" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {fields.map((field) => {
-            const value = field.edited_value ?? field.extracted_value;
-            const snippets = Array.isArray(field.source_snippets) ? field.source_snippets : [];
-            return (
-              <div key={field.id} className="cs-card p-4">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div>
-                    <h3 className="text-sm font-medium text-cs-text-primary">{titleize(field.field_name)}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={"text-[10px] " + confidenceColor(Number(field.confidence))}>
-                        {field.confidence !== null && field.confidence !== undefined ? Math.round(Number(field.confidence) * 100) + "%" : "—"}
-                      </span>
-                      <span className="text-[10px] text-cs-text-muted">{field.status || "pending"}</span>
+        hasExtractionRows ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {fields.map((field) => {
+              const value = field.edited_value ?? field.extracted_value;
+              const snippets = Array.isArray(field.source_snippets) ? field.source_snippets : [];
+              return (
+                <div key={field.id} className="cs-card p-4">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <h3 className="text-sm font-medium text-cs-text-primary">{titleize(field.field_name)}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={"text-[10px] " + confidenceColor(Number(field.confidence))}>
+                          {field.confidence !== null && field.confidence !== undefined ? Math.round(Number(field.confidence) * 100) + "%" : "—"}
+                        </span>
+                        <span className="text-[10px] text-cs-text-muted">{field.status || "pending"}</span>
+                      </div>
                     </div>
+                    {field.status === "accepted" && <CheckCircle2 size={14} className="text-cs-accent-green" />}
                   </div>
-                  {field.status === "accepted" && <CheckCircle2 size={14} className="text-cs-accent-green" />}
+                  <pre className="text-xs text-cs-text-secondary whitespace-pre-wrap break-words bg-cs-bg rounded-md border border-cs-border p-3 max-h-48 overflow-auto">
+                    {formatValue(value)}
+                  </pre>
+                  {snippets.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      <p className="cs-label text-[10px]">Sources</p>
+                      {snippets.slice(0, 3).map((snippet: any, index: number) => (
+                        <p key={index} className="text-[11px] text-cs-text-muted line-clamp-2">
+                          {snippet.source_name || "Source"}: {String(snippet.text || "").replace(/\s+/g, " ")}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <pre className="text-xs text-cs-text-secondary whitespace-pre-wrap break-words bg-cs-bg rounded-md border border-cs-border p-3 max-h-48 overflow-auto">
-                  {formatValue(value)}
-                </pre>
-                {snippets.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    <p className="cs-label text-[10px]">Sources</p>
-                    {snippets.slice(0, 3).map((snippet: any, index: number) => (
-                      <p key={index} className="text-[11px] text-cs-text-muted line-clamp-2">
-                        {snippet.source_name || "Source"}: {String(snippet.text || "").replace(/\s+/g, " ")}
-                      </p>
-                    ))}
-                  </div>
-                )}
+              );
+            })}
+          </div>
+        ) : (
+          <div className="cs-card p-6">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-cs-accent-orange/10 flex items-center justify-center flex-shrink-0">
+                <AlertCircle size={18} className="text-cs-accent-orange" />
               </div>
-            );
-          })}
-        </div>
+              <div>
+                <h3 className="text-sm font-medium text-cs-text-primary">No structured extraction rows found</h3>
+                <p className="text-sm text-cs-text-muted mt-1">
+                  The job status says extraction is complete, but `property_data` and `extraction_fields` are empty for this project. You can still download the JSON/Markdown source manifest below, or rerun extraction to repopulate structured fields.
+                </p>
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="bg-cs-bg border border-cs-border rounded-lg p-3">
+                    <p className="cs-label text-[10px]">Available Web Sources</p>
+                    <p className="text-lg font-semibold text-cs-text-primary mt-1">{data.sources?.web_pages?.length || 0}</p>
+                  </div>
+                  <div className="bg-cs-bg border border-cs-border rounded-lg p-3">
+                    <p className="cs-label text-[10px]">Available File Sources</p>
+                    <p className="text-lg font-semibold text-cs-text-primary mt-1">{data.sources?.files?.length || 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
       )}
 
       {view === "json" && (

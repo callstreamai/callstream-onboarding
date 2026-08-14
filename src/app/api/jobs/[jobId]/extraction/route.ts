@@ -64,32 +64,46 @@ function extractionToMarkdown(payload: any) {
   lines.push("");
   if (job.property_url) lines.push(`**Website:** ${job.property_url}`);
   if (job.status) lines.push(`**Status:** ${String(job.status).replace(/_/g, " ")}`);
+  if (payload.meta?.has_extraction_rows === false) {
+    lines.push("**Extraction Data:** No structured extraction rows are currently stored for this job.");
+  }
   if (data.confidence_score !== undefined && data.confidence_score !== null) {
     lines.push(`**Confidence:** ${Math.round(Number(data.confidence_score) * 100)}%`);
+  } else if (job.extraction_confidence !== undefined && job.extraction_confidence !== null) {
+    lines.push(`**Job Confidence Flag:** ${Math.round(Number(job.extraction_confidence) * 100)}%`);
   }
   lines.push(`**Exported:** ${new Date().toISOString()}`);
   lines.push("");
 
-  lines.push("## Extracted Property Data");
-  lines.push("");
-  for (const key of PROPERTY_FIELDS) {
-    if (["source_urls", "source_files", "created_at", "updated_at"].includes(key)) continue;
-    lines.push(`### ${titleize(key)}`);
-    const value = data[key];
-    if (Array.isArray(value)) {
-      if (value.length === 0) {
-        lines.push("—");
-      } else {
-        for (const item of value) lines.push(`- ${typeof item === "object" ? JSON.stringify(item) : String(item)}`);
-      }
-    } else if (typeof value === "object" && value) {
-      lines.push("```json");
-      lines.push(JSON.stringify(value, null, 2));
-      lines.push("```");
-    } else {
-      lines.push(formatValue(value));
-    }
+  if (!payload.meta?.has_extraction_rows) {
+    lines.push("## Source Manifest");
     lines.push("");
+    lines.push("This job is marked extraction complete, but no structured `property_data` or `extraction_fields` rows are currently stored. The source inventory below is available for re-extraction or review.");
+    lines.push("");
+  }
+
+  if (payload.meta?.has_extraction_rows) {
+    lines.push("## Extracted Property Data");
+    lines.push("");
+    for (const key of PROPERTY_FIELDS) {
+      if (["source_urls", "source_files", "created_at", "updated_at"].includes(key)) continue;
+      lines.push(`### ${titleize(key)}`);
+      const value = data[key];
+      if (Array.isArray(value)) {
+        if (value.length === 0) {
+          lines.push("—");
+        } else {
+          for (const item of value) lines.push(`- ${typeof item === "object" ? JSON.stringify(item) : String(item)}`);
+        }
+      } else if (typeof value === "object" && value) {
+        lines.push("```json");
+        lines.push(JSON.stringify(value, null, 2));
+        lines.push("```");
+      } else {
+        lines.push(formatValue(value));
+      }
+      lines.push("");
+    }
   }
 
   if (fields.length > 0) {
@@ -163,6 +177,16 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
       sources: {
         web_pages: pagesRes.data || [],
         files: filesRes.data || [],
+      },
+      meta: {
+        has_property_data: Boolean(propertyRes.data),
+        has_fields: (fieldsRes.data || []).length > 0,
+        has_extraction_rows: Boolean(propertyRes.data) || (fieldsRes.data || []).length > 0,
+        job_marked_complete: jobRes.data?.status === "extraction_complete" || jobRes.data?.extraction_status === "complete",
+        source_counts: {
+          web_pages: (pagesRes.data || []).length,
+          files: (filesRes.data || []).length,
+        },
       },
       generated_at: new Date().toISOString(),
     };
