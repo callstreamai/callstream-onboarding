@@ -19,29 +19,56 @@ function getUserClient() {
   );
 }
 
+async function getProfilesByIds(supabase: ReturnType<typeof createServiceClient>, ids: string[]) {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return new Map<string, any>();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role")
+    .in("id", uniqueIds);
+
+  if (error) throw error;
+  return new Map((data || []).map((profile: any) => [profile.id, profile]));
+}
+
+function enrichComment(comment: any, profilesById: Map<string, any>) {
+  const profile = profilesById.get(comment.author_id);
+  return {
+    ...comment,
+    author_name: profile?.full_name || null,
+    author_email: profile?.email || null,
+  };
+}
+
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
   try {
     const supabase = createServiceClient();
 
     const { data: comments, error } = await supabase
       .from("project_comments")
-      .select("*, profiles:author_id(full_name, email, role)")
+      .select("*")
       .eq("job_id", params.jobId)
       .order("created_at", { ascending: true });
     if (error) throw error;
 
-    const enriched = (comments || []).map((c: any) => ({
-      ...c,
-      author_name: c.profiles?.full_name || null,
-      author_email: c.profiles?.email || null,
-    }));
+    const profilesById = await getProfilesByIds(
+      supabase,
+      (comments || []).map((comment: any) => comment.author_id)
+    );
+    const enriched = (comments || []).map((comment: any) => enrichComment(comment, profilesById));
 
-    const { data: members } = await supabase
+    const { data: members, error: membersError } = await supabase
       .from("project_members")
-      .select("user_id, profiles:user_id(id, full_name, email, role)")
+      .select("user_id")
       .eq("job_id", params.jobId);
+    if (membersError) throw membersError;
 
-    const users = (members || []).map((m: any) => m.profiles).filter(Boolean);
+    const memberProfilesById = await getProfilesByIds(
+      supabase,
+      (members || []).map((member: any) => member.user_id)
+    );
+    const users = Array.from(memberProfilesById.values());
 
     return NextResponse.json({ comments: enriched, users });
   } catch (err: any) {
@@ -73,7 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
         body: cleanBody,
         mentions: Array.isArray(mentions) ? mentions : [],
       })
-      .select("*, profiles:author_id(full_name, email, role)")
+      .select("*")
       .single();
     if (error) throw error;
 
@@ -113,13 +140,8 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
       }
     }
 
-    return NextResponse.json({
-      comment: {
-        ...comment,
-        author_name: (comment as any).profiles?.full_name || null,
-        author_email: (comment as any).profiles?.email || null,
-      },
-    });
+    const profilesById = await getProfilesByIds(supabase, [comment.author_id]);
+    return NextResponse.json({ comment: enrichComment(comment, profilesById) });
   } catch (err: any) {
     console.error("comment post error:", err);
     return NextResponse.json({ error: err.message || "Failed to post comment" }, { status: 500 });

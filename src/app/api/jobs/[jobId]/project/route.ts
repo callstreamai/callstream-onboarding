@@ -11,32 +11,38 @@ function sbHeaders() {
   };
 }
 
+async function fetchJson(path: string) {
+  const res = await fetch(SB_URL() + path, { headers: sbHeaders(), cache: "no-store" });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
   try {
-    const [milestonesRes, tasksRes, commentsRes] = await Promise.all([
-      fetch(SB_URL() + "/rest/v1/project_milestones?job_id=eq." + params.jobId + "&select=*&order=sort_order", {
-        headers: sbHeaders(), cache: "no-store",
-      }),
-      fetch(SB_URL() + "/rest/v1/project_tasks?job_id=eq." + params.jobId + "&select=*&order=created_at.desc", {
-        headers: sbHeaders(), cache: "no-store",
-      }),
-      // Join profiles so we get author_name / author_email for avatars
-      fetch(SB_URL() + "/rest/v1/project_comments?job_id=eq." + params.jobId + "&select=*,profiles:author_id(full_name,email)&order=created_at.asc", {
-        headers: sbHeaders(), cache: "no-store",
-      }),
+    const [milestones, tasks, rawComments] = await Promise.all([
+      fetchJson("/rest/v1/project_milestones?job_id=eq." + params.jobId + "&select=*&order=sort_order"),
+      fetchJson("/rest/v1/project_tasks?job_id=eq." + params.jobId + "&select=*&order=created_at.desc"),
+      fetchJson("/rest/v1/project_comments?job_id=eq." + params.jobId + "&select=*&order=created_at.asc"),
     ]);
 
-    const milestones = await milestonesRes.json();
-    const tasks = await tasksRes.json();
-    const rawComments = await commentsRes.json();
+    const authorIds = Array.from(new Set((Array.isArray(rawComments) ? rawComments : []).map((c: any) => c.author_id).filter(Boolean)));
+    let profilesById = new Map<string, any>();
 
-    // Enrich comment rows with flat author_name / author_email fields
+    if (authorIds.length > 0) {
+      const encodedIds = authorIds.map((id) => '"' + id + '"').join(",");
+      const profiles = await fetchJson("/rest/v1/profiles?id=in.(" + encodedIds + ")&select=id,full_name,email,role");
+      profilesById = new Map((Array.isArray(profiles) ? profiles : []).map((profile: any) => [profile.id, profile]));
+    }
+
     const comments = Array.isArray(rawComments)
-      ? rawComments.map((c: any) => ({
-          ...c,
-          author_name: c.profiles?.full_name || null,
-          author_email: c.profiles?.email || null,
-        }))
+      ? rawComments.map((c: any) => {
+          const profile = profilesById.get(c.author_id);
+          return {
+            ...c,
+            author_name: profile?.full_name || null,
+            author_email: profile?.email || null,
+          };
+        })
       : [];
 
     return NextResponse.json({
