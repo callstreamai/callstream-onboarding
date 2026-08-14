@@ -10,7 +10,7 @@ import CommentFeed from "@/components/project/CommentFeed";
 import {
   Folder, FileText, Upload, Plus,
   CheckCircle2, Clock, X, Check,
-  Video, Globe, Trash2, ExternalLink,
+  Video, Globe, Trash2, ExternalLink, Pencil,
 } from "lucide-react";
 import { ICON_MAP, ICON_LABELS } from "@/lib/spaceIcons";
 
@@ -120,6 +120,10 @@ export default function WorkspacePage() {
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [addingLink, setAddingLink] = useState(false);
+  const [editingSpaceId, setEditingSpaceId] = useState<string | null>(null);
+  const [editSpaceName, setEditSpaceName] = useState("");
+  const [editSpaceDesc, setEditSpaceDesc] = useState("");
+  const [deletingSpaceId, setDeletingSpaceId] = useState<string | null>(null);
   // Icon editing per card
   const [iconPickerFor, setIconPickerFor] = useState<string | null>(null);
 
@@ -190,6 +194,63 @@ export default function WorkspacePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ spaceId, icon }),
     });
+  }
+
+  function beginEditSpace(space: Space) {
+    setEditingSpaceId(space.id);
+    setEditSpaceName(space.name);
+    setEditSpaceDesc(space.description || "");
+    setIconPickerFor(null);
+  }
+
+  async function handleUpdateSpace() {
+    if (!editingSpaceId || !editSpaceName.trim()) return;
+    const res = await fetch("/api/jobs/" + jobId + "/spaces", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spaceId: editingSpaceId, name: editSpaceName.trim(), description: editSpaceDesc.trim() || null }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Update failed" }));
+      setUploadError(err.error || "Update failed");
+      return;
+    }
+
+    setEditingSpaceId(null);
+    setEditSpaceName("");
+    setEditSpaceDesc("");
+    loadWorkspace();
+  }
+
+  async function handleDeleteSpace(space: Space) {
+    const docCount = space.space_documents?.length || 0;
+    const message = "Delete space \"" + space.name + "\"?" +
+      (docCount > 0 ? " This will permanently delete " + docCount + " file" + (docCount === 1 ? "" : "s") + " in this space." : "") +
+      " This cannot be undone.";
+
+    if (!window.confirm(message)) return;
+
+    setDeletingSpaceId(space.id);
+    const res = await fetch("/api/jobs/" + jobId + "/spaces?spaceId=" + space.id, {
+      method: "DELETE",
+    });
+    setDeletingSpaceId(null);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Delete failed" }));
+      setUploadError(err.error || "Delete failed");
+      return;
+    }
+
+    if (activeSpace === space.id) setActiveSpace(null);
+    setEditingSpaceId(null);
+    setSpaceLinks((prev) => {
+      const next = { ...prev };
+      delete next[space.id];
+      return next;
+    });
+    loadWorkspace();
   }
 
   async function handleFileUpload(spaceId: string, files: FileList) {
@@ -367,15 +428,26 @@ export default function WorkspacePage() {
 
             return (
               <div key={space.id} className="relative">
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     const nextActive = activeSpace === space.id ? null : space.id;
                     setActiveSpace(nextActive);
                     if (nextActive) { loadLinks(nextActive); setShowAddLink(false); }
                     setIconPickerFor(null);
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      const nextActive = activeSpace === space.id ? null : space.id;
+                      setActiveSpace(nextActive);
+                      if (nextActive) { loadLinks(nextActive); setShowAddLink(false); }
+                      setIconPickerFor(null);
+                    }
+                  }}
                   className={
-                    "w-full cs-card p-4 text-left transition hover:border-cs-accent-blue/50 " +
+                    "w-full cs-card p-4 text-left transition hover:border-cs-accent-blue/50 cursor-pointer " +
                     (activeSpace === space.id ? "border-cs-accent-blue" : "")
                   }
                 >
@@ -402,13 +474,32 @@ export default function WorkspacePage() {
                           <Globe size={9} />{(spaceLinks[space.id] || []).length}
                         </span>
                       )}
+                      <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); beginEditSpace(space); }}
+                          className="text-cs-text-muted hover:text-cs-accent-blue p-0.5 rounded"
+                          title="Edit space"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSpace(space); }}
+                          disabled={deletingSpaceId === space.id}
+                          className="text-cs-text-muted hover:text-cs-accent-red p-0.5 rounded disabled:opacity-50"
+                          title="Delete space"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </span>
                     </div>
                   </div>
                   <h3 className="text-sm font-medium text-cs-text-primary">{space.name}</h3>
                   {space.description && (
                     <p className="text-[11px] text-cs-text-muted mt-0.5 line-clamp-2">{space.description}</p>
                   )}
-                </button>
+                </div>
 
                 {/* Icon picker for this card */}
                 {isPickerOpen && (
@@ -418,6 +509,28 @@ export default function WorkspacePage() {
                       onChange={(icon) => handleChangeIcon(space.id, icon)}
                       onClose={() => setIconPickerFor(null)}
                     />
+                  </div>
+                )}
+
+                {editingSpaceId === space.id && (
+                  <div className="mt-2 cs-card p-3 space-y-2 border-cs-accent-blue/40">
+                    <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Edit space</p>
+                    <input
+                      value={editSpaceName}
+                      onChange={(e) => setEditSpaceName(e.target.value)}
+                      className="cs-input text-xs"
+                      placeholder="Space name"
+                    />
+                    <input
+                      value={editSpaceDesc}
+                      onChange={(e) => setEditSpaceDesc(e.target.value)}
+                      className="cs-input text-xs"
+                      placeholder="Description"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleUpdateSpace} className="cs-btn-primary text-xs px-3 py-1.5">Save</button>
+                      <button onClick={() => setEditingSpaceId(null)} className="text-xs text-cs-text-muted hover:text-cs-text-secondary">Cancel</button>
+                    </div>
                   </div>
                 )}
               </div>
