@@ -5,7 +5,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/types/auth";
 import { Spinner } from "@/components/ui/Spinner";
-import { Users, Shield, User, UserPlus, Send, X, Copy, Check, Link2 } from "lucide-react";
+import { Users, Shield, User, UserPlus, Send, X, Copy, Check, Link2, ChevronRight } from "lucide-react";
 
 export default function AdminUsersPage() {
   const { isAdmin, isLoading: authLoading } = useAuth();
@@ -19,6 +19,9 @@ export default function AdminUsersPage() {
   const [inviteResult, setInviteResult] = useState<{ link: string; email: string } | null>(null);
   const [inviteError, setInviteError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [userDetail, setUserDetail] = useState<any | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -88,6 +91,22 @@ export default function AdminUsersPage() {
     setInviteError("");
     setInviteEmail("");
     setCopied(false);
+  }
+
+  async function openUserDetail(userId: string) {
+    setSelectedUserId(userId);
+    setLoadingDetail(true);
+    setUserDetail(null);
+    try {
+      const res = await fetch("/api/admin/users/" + userId);
+      const data = await res.json();
+      if (res.ok) setUserDetail(data);
+      else setUserDetail({ error: data.error || "Failed to load user detail" });
+    } catch {
+      setUserDetail({ error: "Network error loading user detail" });
+    } finally {
+      setLoadingDetail(false);
+    }
   }
 
   if (authLoading || (!isAdmin && !authLoading)) {
@@ -201,7 +220,7 @@ export default function AdminUsersPage() {
       ) : (
         <div className="space-y-2">
           {users.map((user) => (
-            <div key={user.id} className="cs-card flex items-center justify-between p-4">
+            <button key={user.id} onClick={() => openUserDetail(user.id)} className="cs-card w-full flex items-center justify-between p-4 text-left hover:border-cs-accent-blue/40 transition">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-cs-card border border-cs-border flex items-center justify-center">
                   {user.role === "admin" ? (
@@ -222,17 +241,118 @@ export default function AdminUsersPage() {
                   {user.role}
                 </span>
                 <button
-                  onClick={() => toggleRole(user.id, user.role)}
+                  onClick={(e) => { e.stopPropagation(); toggleRole(user.id, user.role); }}
                   className="cs-btn-ghost text-xs py-1.5"
                 >
                   {user.role === "admin" ? "Demote" : "Promote"}
                 </button>
+                <ChevronRight size={14} className="text-cs-text-muted" />
               </div>
-            </div>
+            </button>
           ))}
           {users.length === 0 && (
             <p className="text-center text-cs-text-muted text-sm py-12">No users yet.</p>
           )}
+        </div>
+      )}
+
+      {selectedUserId && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={() => setSelectedUserId(null)}>
+          <div className="w-full max-w-2xl h-full bg-cs-bg border-l border-cs-border overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <p className="cs-label text-[10px] mb-1">User Detail</p>
+                <h2 className="text-xl font-semibold text-cs-text-primary">
+                  {userDetail?.user?.full_name || users.find((u) => u.id === selectedUserId)?.full_name || "User"}
+                </h2>
+                <p className="text-sm text-cs-text-muted font-mono">
+                  {userDetail?.user?.email || users.find((u) => u.id === selectedUserId)?.email}
+                </p>
+              </div>
+              <button onClick={() => setSelectedUserId(null)} className="text-cs-text-muted hover:text-cs-text-primary">
+                <X size={18} />
+              </button>
+            </div>
+
+            {loadingDetail ? (
+              <div className="flex justify-center py-16"><Spinner size={28} /></div>
+            ) : userDetail?.error ? (
+              <div className="cs-card p-4 text-sm text-cs-accent-red">{userDetail.error}</div>
+            ) : userDetail ? (
+              <div className="space-y-5">
+                <div className="cs-card p-4">
+                  <p className="text-sm font-medium text-cs-text-primary mb-3">Validated records</p>
+                  <div className="divide-y divide-cs-border">
+                    {(userDetail.records || []).map((record: any) => (
+                      <div key={record.label} className="flex items-center justify-between py-2 text-sm">
+                        <span className="text-cs-text-muted">{record.label}</span>
+                        <span className="text-cs-text-primary">{record.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="cs-card p-4">
+                    <p className="text-sm font-medium text-cs-text-primary mb-3">Contact records</p>
+                    {(userDetail.contacts || []).length === 0 ? (
+                      <p className="text-xs text-cs-text-muted">No matching contact record.</p>
+                    ) : (userDetail.contacts || []).map((contact: any) => (
+                      <div key={contact.id} className="text-xs text-cs-text-secondary space-y-1">
+                        <p className="text-cs-text-primary font-medium">{contact.full_name || "Unnamed"}</p>
+                        <p>{contact.email}</p>
+                        {contact.title && <p>{contact.title}</p>}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="cs-card p-4">
+                    <p className="text-sm font-medium text-cs-text-primary mb-3">Auth</p>
+                    <div className="text-xs text-cs-text-secondary space-y-2">
+                      <p>Created: {userDetail.auth?.created_at ? new Date(userDetail.auth.created_at).toLocaleString() : "—"}</p>
+                      <p>Last sign in: {userDetail.auth?.last_sign_in_at ? new Date(userDetail.auth.last_sign_in_at).toLocaleString() : "Never"}</p>
+                      <p>Email confirmed: {userDetail.auth?.email_confirmed_at ? "Yes" : "No"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="cs-card p-4">
+                  <p className="text-sm font-medium text-cs-text-primary mb-3">Linked accounts</p>
+                  {(userDetail.accounts || []).length === 0 ? (
+                    <p className="text-xs text-cs-text-muted">No linked accounts.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(userDetail.accounts || []).map((account: any) => (
+                        <div key={account.id} className="text-xs text-cs-text-secondary border border-cs-border rounded-md p-3">
+                          <p className="text-cs-text-primary font-medium">{account.name}</p>
+                          {account.property_url && <p className="truncate">{account.property_url}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="cs-card p-4">
+                  <p className="text-sm font-medium text-cs-text-primary mb-3">Project memberships</p>
+                  {(userDetail.projects || []).length === 0 ? (
+                    <p className="text-xs text-cs-text-muted">No project memberships.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(userDetail.projects || []).map((project: any) => (
+                        <div key={project.id} className="flex items-center justify-between gap-3 text-xs border border-cs-border rounded-md p-3">
+                          <div className="min-w-0">
+                            <p className="text-cs-text-primary font-medium truncate">{project.property_name || project.property_url}</p>
+                            <p className="text-cs-text-muted truncate">{project.property_url}</p>
+                          </div>
+                          <span className="cs-badge bg-cs-card text-cs-text-muted flex-shrink-0">{project.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </div>
