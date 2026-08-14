@@ -221,6 +221,11 @@ export default function DashboardPage() {
                         <Activity size={14} />
                         View Status
                       </Link>
+                      <Link href={"/onboarding/" + job.id + "/workspace"}
+                        className="cs-btn-secondary text-sm flex-1 justify-center">
+                        <FolderOpen size={14} />
+                        Workspace
+                      </Link>
                     </div>
                   </div>
                 );

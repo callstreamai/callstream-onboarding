@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
-import AdminOnlyProjectPage from "@/components/project/AdminOnlyProjectPage";
 import JobTabs from "@/components/project/JobTabs";
 import CommentFeed from "@/components/project/CommentFeed";
 import {
@@ -343,7 +342,6 @@ export default function WorkspacePage() {
   const NewIconComp = ICON_MAP[newSpaceIcon] || Folder;
 
   return (
-    <AdminOnlyProjectPage jobId={jobId}>
     <div>
       <JobTabs jobId={jobId} />
 
@@ -709,6 +707,5 @@ export default function WorkspacePage() {
         />
       </div>
     </div>
-    </AdminOnlyProjectPage>
   );
 }
