@@ -36,10 +36,13 @@ export async function GET(request: Request) {
     }
 
     if (!error && data?.user) {
-      if (type === "recovery") return NextResponse.redirect(new URL("/auth/reset-password", appUrl));
+      if (type === "recovery") {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/login", appUrl));
+      }
       const isNew = !data.user.last_sign_in_at || (data.user.created_at === data.user.updated_at);
       if (type === "invite" || (type === "magiclink" && isNew)) {
-        return NextResponse.redirect(new URL("/auth/complete-signup", appUrl));
+        return NextResponse.redirect(new URL(next || "/", appUrl));
       }
       return NextResponse.redirect(new URL(next || "/", appUrl));
     }

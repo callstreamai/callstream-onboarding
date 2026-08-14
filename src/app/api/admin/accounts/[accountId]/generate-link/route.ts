@@ -73,60 +73,20 @@ export async function POST(req: NextRequest, { params }: { params: { accountId: 
       }, { onConflict: "job_id,user_id" }).then(() => {});
     }
 
-    // Generate magic link via Supabase Admin API
-    const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-      options: {
-        redirectTo: appUrl + "/auth/callback",
-      },
-    });
-
-    if (linkErr || !linkData) {
-      return NextResponse.json({ error: linkErr?.message || "Failed to generate link" }, { status: 500 });
-    }
-
-    // Extract action_link — handle all possible response shapes from Supabase JS client
-    const ld = linkData as any;
-    const actionLink =
-      ld?.properties?.action_link ||
-      ld?.action_link ||
-      ld?.user?.action_link ||
-      "";
-
-    // If we still can't find it, build it manually from the hashed_token
-    let magicLink = actionLink;
-    if (!magicLink) {
-      const hashedToken =
-        ld?.properties?.hashed_token ||
-        ld?.hashed_token ||
-        ld?.user?.hashed_token ||
-        "";
-      if (hashedToken) {
-        magicLink = process.env.NEXT_PUBLIC_SUPABASE_URL +
-          "/auth/v1/verify?token=" + hashedToken +
-          "&type=magiclink" +
-          "&redirect_to=" + encodeURIComponent(appUrl + "/auth/callback");
-      }
-    }
-
-    // Final fallback: just provide the login URL
-    if (!magicLink) {
-      magicLink = appUrl + "/login";
-    }
-
     // Build onboarding URL
     let onboardingUrl = appUrl;
     if (account?.onboarding_job_id) {
       onboardingUrl = appUrl + "/onboarding/" + account.onboarding_job_id + "/workspace";
     }
 
+    const loginUrl = appUrl + "/login";
+
     return NextResponse.json({
       success: true,
       userId: existingUser.id,
-      magicLink,
+      magicLink: loginUrl,
       onboardingUrl,
-      loginUrl: appUrl + "/login",
+      loginUrl,
       propertyName: account?.name || "",
     });
 

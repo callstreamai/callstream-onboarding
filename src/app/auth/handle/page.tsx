@@ -43,7 +43,7 @@ export default function AuthHandlePage() {
         // security scanners opening the link first) lands here. Give the user a
         // clear, actionable message instead of silently bouncing to /login.
         if (errorCode === "otp_expired" || error === "access_denied") {
-          setStatus("This sign-in link has already been used or expired. Redirecting you to sign in with your password...");
+          setStatus("This sign-in link has already been used or expired. Redirecting you to request a Magic Code...");
           setTimeout(
             () => router.push("/login?error=" + encodeURIComponent("link_expired")),
             2500
@@ -75,17 +75,20 @@ export default function AuthHandlePage() {
 
       const user = data.user;
 
-      // Route based on type and whether user has signed in before
+      // Password recovery is intentionally disabled. Users can only sign in
+      // with admin-created accounts and emailed Magic Codes.
       if (type === "recovery") {
-        router.push("/auth/reset-password");
+        await supabase.auth.signOut();
+        setStatus("Password reset is disabled. Redirecting you to Magic Code sign in...");
+        setTimeout(() => router.push("/login"), 1500);
         return;
       }
 
-      // New user (never signed in, or explicitly an invite)
+      // Invite and magic-link tokens establish the session; no password setup.
       const isNew = !user.last_sign_in_at;
       if (type === "invite" || (type === "magiclink" && isNew)) {
-        setStatus("Account ready! Setting up your portal...");
-        router.push("/auth/complete-signup");
+        setStatus("Account ready! Redirecting...");
+        router.push("/");
         return;
       }
 

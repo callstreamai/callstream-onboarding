@@ -32,52 +32,47 @@ export async function POST(
       ? `${appUrl}/onboarding/${account.onboarding_job_id}/workspace`
       : `${appUrl}/`;
 
-    // Send Invite ALWAYS generates a proper registration link (type=invite, 24h expiry).
-    // Delete any existing auth account first — this clears ghost accounts created by
-    // "Get Login Link" and ensures the user gets a clean password-setup flow regardless
-    // of their sign-in history.
+    // Ensure the user exists as an admin-created account. Do not allow public
+    // self-registration and do not delete/recreate existing users.
     const { data: usersData } = await adminClient.auth.admin.listUsers();
-    const existingUser = usersData?.users?.find((u: any) => u.email === email);
+    let existingUser = usersData?.users?.find((u: any) => u.email === email);
 
-    if (existingUser) {
-      await adminClient.auth.admin.deleteUser(existingUser.id);
+    if (!existingUser) {
+      const tempPassword = crypto.randomUUID().slice(0, 20) + "!Aa1";
+      const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { full_name: fullName || "", role: "client" },
+      });
+
+      if (createErr) throw createErr;
+      existingUser = newUser?.user || null;
+    } else if (!existingUser.email_confirmed_at) {
+      await adminClient.auth.admin.updateUserById(existingUser.id, { email_confirm: true });
     }
 
-    let inviteLink = "";
-    const isNewUser = true; // always registration flow from this endpoint
+    if (!existingUser) {
+      return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+    }
 
-    const { data: inviteData, error: inviteErr } = await adminClient.auth.admin.generateLink({
-      type: "invite",
-      email,
-      options: { redirectTo: `${appUrl}/auth/handle` },
-    });
+    const inviteLink = `${appUrl}/login`;
+    const isNewUser = !usersData?.users?.some((u: any) => u.email === email);
 
-    if (inviteErr) throw inviteErr;
-
-    const ld = inviteData as any;
-    inviteLink =
-      ld?.properties?.action_link ||
-      ld?.action_link ||
-      ld?.user?.action_link ||
-      `${appUrl}/login`;
-
-    // Ensure profile + account_user + project_member rows are ready for when they complete signup
-    const newUserId = (ld?.user?.id || ld?.id) as string | undefined;
-    if (newUserId) {
-      await supabase.from("profiles").upsert(
-        { id: newUserId, email, full_name: fullName || "", role: "client" },
-        { onConflict: "id" }
+    // Ensure profile + account_user + project_member rows are ready before login.
+    await supabase.from("profiles").upsert(
+      { id: existingUser.id, email, full_name: fullName || "", role: "client" },
+      { onConflict: "id" }
+    );
+    await supabase.from("account_users").upsert(
+      { account_id: params.accountId, user_id: existingUser.id },
+      { onConflict: "account_id,user_id" }
+    );
+    if (account?.onboarding_job_id) {
+      await supabase.from("project_members").upsert(
+        { job_id: account.onboarding_job_id, user_id: existingUser.id, role: "member" },
+        { onConflict: "job_id,user_id" }
       );
-      await supabase.from("account_users").upsert(
-        { account_id: params.accountId, user_id: newUserId },
-        { onConflict: "account_id,user_id" }
-      );
-      if (account?.onboarding_job_id) {
-        await supabase.from("project_members").upsert(
-          { job_id: account.onboarding_job_id, user_id: newUserId, role: "member" },
-          { onConflict: "job_id,user_id" }
-        );
-      }
     }
 
     // ── Send email via Resend ──────────────────────────────────────────────
@@ -89,8 +84,8 @@ export async function POST(
     const firstName = (fullName || email).split(" ")[0];
 
     const subject = `You've been invited to Call Stream AI`;
-    const ctaText = "Complete Registration";
-    const bodyText = `You've been invited to collaborate on <strong>${propertyName}</strong> on the Call Stream AI Onboarding Platform. Click below to create your account and set your password — this link expires in <strong>24 hours</strong>.`;
+    const ctaText = "Sign in with Magic Code";
+    const bodyText = `You've been invited to collaborate on <strong>${propertyName}</strong> on the Call Stream AI Onboarding Platform. Use the email address <strong>${email}</strong> to request a Magic Code and sign in. Access is invite-only and no password setup is required.`;
 
     const html = `
 <!DOCTYPE html>
@@ -120,7 +115,7 @@ export async function POST(
       </a>
 
       <p style="margin:28px 0 0;color:#666;font-size:12px;line-height:1.5;">
-        This link expires in 24 hours. If you didn't expect this invitation, you can safely ignore it.
+        If you didn't expect this invitation, you can safely ignore it.
       </p>
     </div>
 
@@ -156,7 +151,9 @@ export async function POST(
       emailId: emailData.id,
       isNewUser,
       inviteLink,
-      message: `Invite email sent to ${email} — link expires in 24 hours`,
+      loginUrl: inviteLink,
+      onboardingUrl: redirectTo,
+      message: `Invite email sent to ${email} — user can sign in with a Magic Code`,
     });
 
   } catch (err: any) {
