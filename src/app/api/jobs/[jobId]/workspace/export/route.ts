@@ -173,57 +173,148 @@ export async function GET(
 
     if (documentsError) throw documentsError;
 
+    const { data: uploadedFiles, error: uploadedFilesError } = await supabase
+      .from("uploaded_files")
+      .select("id, file_name, file_type, file_size, storage_path, processing_status, source_provenance, created_at")
+      .eq("job_id", jobId)
+      .order("created_at", { ascending: true });
+
+    if (uploadedFilesError) throw uploadedFilesError;
+
+    const { data: links, error: linksError } = await supabase
+      .from("space_links")
+      .select("id, space_id, job_id, title, url, description, created_at")
+      .eq("job_id", jobId)
+      .order("created_at", { ascending: true });
+
+    if (linksError) throw linksError;
+
     const spaceById = new Map((spaces || []).map((space: any) => [space.id, space]));
     const zipFiles: { path: string; data: Buffer; modifiedAt?: Date }[] = [];
     const usedPaths = new Set<string>();
+    const exportedStoragePaths = new Set<string>();
     const manifestDocuments: any[] = [];
     const skippedDocuments: any[] = [];
+    const manifestLinks = (links || []).map((link: any) => {
+      const space = spaceById.get(link.space_id) as any;
+      return {
+        id: link.id,
+        space_id: link.space_id,
+        space_name: space?.name || "Uncategorized",
+        title: link.title,
+        url: link.url,
+        description: link.description,
+        created_at: link.created_at,
+      };
+    });
 
-    for (const document of documents || []) {
-      const space = spaceById.get(document.space_id) as any;
-      const spaceName = sanitizePathPart(space?.name, "Uncategorized");
-      const fileName = sanitizePathPart(document.file_name || document.name, `document-${document.id}`);
-      const zipPath = makeUniquePath(`${spaceName}/${fileName}`, usedPaths);
-
-      if (!document.storage_path) {
-        skippedDocuments.push({ ...document, reason: "Missing storage path" });
-        continue;
+    const addStoredFile = async ({
+      record,
+      zipDirectory,
+      fileName,
+      source,
+      spaceName,
+    }: {
+      record: any;
+      zipDirectory: string;
+      fileName: string;
+      source: "space_documents" | "uploaded_files";
+      spaceName?: string;
+    }) => {
+      if (!record.storage_path) {
+        skippedDocuments.push({ ...record, source, reason: "Missing storage path" });
+        return;
       }
+
+      if (exportedStoragePaths.has(record.storage_path)) {
+        return;
+      }
+      exportedStoragePaths.add(record.storage_path);
+
+      const safeDirectory = sanitizePathPart(zipDirectory, "Uploaded Files");
+      const safeFileName = sanitizePathPart(fileName, `document-${record.id}`);
+      const zipPath = makeUniquePath(`${safeDirectory}/${safeFileName}`, usedPaths);
 
       const { data: blob, error: downloadError } = await supabase.storage
         .from(BUCKET_NAME)
-        .download(document.storage_path);
+        .download(record.storage_path);
 
       if (downloadError || !blob) {
         skippedDocuments.push({
-          id: document.id,
-          name: document.name,
-          file_name: document.file_name,
-          storage_path: document.storage_path,
+          id: record.id,
+          source,
+          name: record.name,
+          file_name: record.file_name,
+          storage_path: record.storage_path,
           reason: downloadError?.message || "File could not be downloaded",
         });
-        continue;
+        return;
       }
 
       const data = Buffer.from(await blob.arrayBuffer());
       zipFiles.push({
         path: zipPath,
         data,
-        modifiedAt: document.created_at ? new Date(document.created_at) : undefined,
+        modifiedAt: record.created_at ? new Date(record.created_at) : undefined,
       });
 
       manifestDocuments.push({
-        id: document.id,
-        space_id: document.space_id,
-        space_name: space?.name || "Uncategorized",
-        name: document.name,
-        file_name: document.file_name,
-        file_type: document.file_type,
-        file_size: document.file_size,
-        processing_status: document.processing_status,
-        storage_path: document.storage_path,
+        id: record.id,
+        source,
+        space_name: spaceName || null,
+        name: record.name || record.file_name,
+        file_name: record.file_name,
+        file_type: record.file_type,
+        file_size: record.file_size,
+        processing_status: record.processing_status,
+        source_provenance: record.source_provenance || null,
+        storage_path: record.storage_path,
         zip_path: zipPath,
-        created_at: document.created_at,
+        created_at: record.created_at,
+      });
+    };
+
+    for (const document of documents || []) {
+      const space = spaceById.get(document.space_id) as any;
+      const spaceName = space?.name || "Uncategorized";
+      await addStoredFile({
+        record: document,
+        zipDirectory: spaceName,
+        fileName: document.file_name || document.name,
+        source: "space_documents",
+        spaceName,
+      });
+    }
+
+    for (const uploadedFile of uploadedFiles || []) {
+      await addStoredFile({
+        record: uploadedFile,
+        zipDirectory: "Uploaded Files",
+        fileName: uploadedFile.file_name,
+        source: "uploaded_files",
+      });
+    }
+
+    if (manifestLinks.length > 0) {
+      const linksMarkdown = [
+        "# Workspace Links",
+        "",
+        ...manifestLinks.flatMap((link: any) => [
+          `## ${link.space_name}`,
+          `- [${link.title || link.url}](${link.url})${link.description ? ` — ${link.description}` : ""}`,
+          "",
+        ]),
+      ].join("\n");
+
+      zipFiles.push({
+        path: makeUniquePath("Links/links.md", usedPaths),
+        data: Buffer.from(linksMarkdown, "utf8"),
+        modifiedAt: new Date(),
+      });
+      zipFiles.push({
+        path: makeUniquePath("Links/links.json", usedPaths),
+        data: Buffer.from(JSON.stringify(manifestLinks, null, 2), "utf8"),
+        modifiedAt: new Date(),
       });
     }
 
@@ -235,8 +326,10 @@ export async function GET(
       spaces: spaces || [],
       document_count: manifestDocuments.length,
       skipped_count: skippedDocuments.length,
+      link_count: manifestLinks.length,
       documents: manifestDocuments,
       skipped_documents: skippedDocuments,
+      links: manifestLinks,
     };
 
     zipFiles.push({
@@ -245,11 +338,11 @@ export async function GET(
       modifiedAt: new Date(),
     });
 
-    if (manifestDocuments.length === 0) {
+    if (manifestDocuments.length === 0 && manifestLinks.length === 0) {
       zipFiles.push({
         path: makeUniquePath("README.txt", usedPaths),
         data: Buffer.from(
-          "No workspace documents were available to export for this project. See manifest.json for details.\n",
+          "No workspace documents or links were available to export for this project. See manifest.json for details.\n",
           "utf8"
         ),
         modifiedAt: new Date(),
