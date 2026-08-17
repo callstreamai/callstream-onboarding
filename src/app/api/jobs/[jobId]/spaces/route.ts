@@ -10,7 +10,19 @@ const DEFAULT_SPACES = [
   { name: "Policies", description: "Pet, parking, cancellation, noise policies", icon: "file-text" },
   { name: "Training", description: "Staff training manuals, onboarding guides", icon: "book" },
   { name: "Marketing", description: "Brochures, promotions, brand guidelines", icon: "megaphone" },
+  { name: "Event Calendar", description: "Property events, community activities, scheduled programming", icon: "calendar" },
 ];
+
+// Default links to seed per space name
+const DEFAULT_SPACE_LINKS: Record<string, { title: string; url: string; description?: string }[]> = {
+  "Event Calendar": [
+    {
+      title: "Property Event Calendar",
+      url: "https://online.flippingbook.com/view/1012294416/",
+      description: "Interactive digital event calendar — view upcoming property events and activities",
+    },
+  ],
+};
 
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
   try {
@@ -44,7 +56,25 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
       }));
       const { data, error } = await supabase.from("spaces").insert(rows).select();
       if (error) throw error;
-      return NextResponse.json({ spaces: data });
+
+      // Seed default links for spaces that have them
+      const spaces = data || [];
+      for (const space of spaces) {
+        const defaultLinks = DEFAULT_SPACE_LINKS[space.name];
+        if (defaultLinks && defaultLinks.length > 0) {
+          const linkRows = defaultLinks.map((link) => ({
+            space_id: space.id,
+            job_id: params.jobId,
+            title: link.title,
+            url: link.url,
+            description: link.description || null,
+            added_by: body.userId || null,
+          }));
+          await supabase.from("space_links").insert(linkRows);
+        }
+      }
+
+      return NextResponse.json({ spaces });
     }
 
     const { data, error } = await supabase
