@@ -9,7 +9,7 @@ import CommentFeed from "@/components/project/CommentFeed";
 import {
   Folder, FileText, Upload, Plus,
   CheckCircle2, Clock, X, Check,
-  Video, Globe, Trash2, ExternalLink, Pencil, Calendar,
+  Video, Globe, Trash2, ExternalLink, Pencil, Calendar, Download,
 } from "lucide-react";
 import { ICON_MAP, ICON_LABELS } from "@/lib/spaceIcons";
 
@@ -353,6 +353,13 @@ export default function WorkspacePage() {
             <p className="text-sm text-cs-text-muted">Upload and organize property knowledge</p>
           </div>
           <div className="flex gap-2">
+            <a
+              href={`/api/jobs/${jobId}/workspace/export`}
+              download
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-card border border-cs-border text-cs-text-secondary hover:text-cs-text-primary hover:border-cs-accent-blue/50 transition"
+            >
+              <Download size={13} /> Download all docs
+            </a>
             <button
               onClick={() => setShowNewSpace(!showNewSpace)}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-accent-blue/10 text-cs-accent-blue hover:bg-cs-accent-blue/20"
