@@ -9,7 +9,7 @@ import CommentFeed from "@/components/project/CommentFeed";
 import {
   Folder, FileText, Upload, Plus,
   CheckCircle2, Clock, X, Check,
-  Video, Globe, Trash2, ExternalLink, Pencil,
+  Video, Globe, Trash2, ExternalLink, Pencil, Calendar,
 } from "lucide-react";
 import { ICON_MAP, ICON_LABELS } from "@/lib/spaceIcons";
 
@@ -595,6 +595,37 @@ export default function WorkspacePage() {
               </div>
             ) : (
               <p className="text-xs text-cs-text-muted text-center py-4">No documents yet. Upload files to get started.</p>
+            )}
+
+            {/* Event Calendar — FlippingBook embed */}
+            {active.name === "Event Calendar" && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar size={14} className="text-cs-accent-blue" />
+                  <h4 className="text-xs font-medium text-cs-text-primary">Event Calendar</h4>
+                  <span className="text-[10px] text-cs-text-muted bg-cs-card px-1.5 py-0.5 rounded-full border border-cs-border">Interactive</span>
+                </div>
+                <div className="rounded-xl overflow-hidden border border-cs-border bg-cs-card">
+                  <iframe
+                    src="https://online.flippingbook.com/view/1012294416/"
+                    title="Property Event Calendar"
+                    className="w-full"
+                    style={{ height: "520px", border: "none" }}
+                    allowFullScreen
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2 px-1">
+                  <p className="text-[10px] text-cs-text-muted">Interactive digital event calendar — powered by FlippingBook</p>
+                  <a
+                    href="https://online.flippingbook.com/view/1012294416/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-[10px] text-cs-accent-blue hover:underline"
+                  >
+                    <ExternalLink size={10} /> Open full view
+                  </a>
+                </div>
+              </div>
             )}
 
             {/* Links section */}
