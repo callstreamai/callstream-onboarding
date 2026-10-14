@@ -5,26 +5,40 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
-  LayoutDashboard, FileInput, Mic2, Settings,
-  Users, LogOut, FolderOpen, Building2, X,
+  LayoutDashboard,
+  FileInput,
+  Mic2,
+  Settings,
+  Users,
+  LogOut,
+  FolderOpen,
+  Building2,
+  X,
 } from "lucide-react";
 
-export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function Sidebar({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const pathname = usePathname();
   const { profile, isAdmin, signOut } = useAuth();
 
-  const submissionsLabel = isAdmin ? "My Properties" : "My Projects";
-  const mainItems: { label: string; href: string; icon: React.ElementType }[] = isAdmin
-    ? [
-        { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Create property", href: "/onboarding", icon: FileInput },
-        { label: submissionsLabel, href: "/submissions", icon: FolderOpen },
-        { label: "Voice Studio", href: "/voice-preview", icon: Mic2 },
-      ]
-    : [
-        { label: "Overview", href: "/", icon: LayoutDashboard },
-        { label: "My Projects", href: "/submissions", icon: FolderOpen },
-      ];
+  const submissionsLabel = "Properties";
+  const mainItems: { label: string; href: string; icon: React.ElementType }[] =
+    isAdmin
+      ? [
+          { label: "Dashboard", href: "/", icon: LayoutDashboard },
+          { label: "Create property", href: "/onboarding", icon: FileInput },
+          { label: submissionsLabel, href: "/properties", icon: FolderOpen },
+          { label: "Voice Studio", href: "/voice-preview", icon: Mic2 },
+        ]
+      : [
+          { label: "Overview", href: "/", icon: LayoutDashboard },
+          { label: "Properties", href: "/properties", icon: FolderOpen },
+        ];
 
   const NAV_SECTIONS = [
     {
@@ -37,7 +51,6 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             label: "ADMIN",
             items: [
               { label: "Accounts", href: "/admin/accounts", icon: Building2 },
-              { label: "All Submissions", href: "/admin/submissions", icon: FolderOpen },
               { label: "Users", href: "/admin/users", icon: Users },
               { label: "Settings", href: "/settings", icon: Settings },
             ],
@@ -47,12 +60,27 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   ];
 
   return (
-    <aside id="main-navigation" className={`fixed left-0 top-0 h-dvh w-56 bg-cs-bg border-r border-cs-border flex-col z-50 ${open ? "flex" : "hidden lg:flex"}`}>
+    <aside
+      id="main-navigation"
+      className={`fixed left-0 top-0 h-dvh w-56 bg-cs-bg border-r border-cs-border flex-col z-50 ${open ? "flex" : "hidden lg:flex"}`}
+    >
       <div className="px-5 pt-5 pb-4 flex justify-between items-center gap-2">
-        <img src="/logo.png" alt="Call Stream AI" className="h-8 max-w-[155px] object-contain" />
-        <button className="lg:hidden p-1" aria-label="Close navigation" onClick={onClose}><X size={18} /></button>
+        <img
+          src="/logo.png"
+          alt="Call Stream AI"
+          className="h-8 max-w-[155px] object-contain"
+        />
+        <button
+          className="lg:hidden p-1"
+          aria-label="Close navigation"
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
       </div>
-      <p className="cs-label px-5 pb-5 text-cs-accent-brand">Launch workspace</p>
+      <p className="cs-label px-5 pb-5 text-cs-accent-brand">
+        Launch workspace
+      </p>
 
       <div className="mx-3 mb-4 px-3 py-2.5 bg-cs-card rounded-md border border-cs-border">
         <p className="cs-label text-[10px]">ACCOUNT</p>
@@ -60,20 +88,38 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           {profile?.company_name || profile?.full_name || "Call Stream AI"}
         </p>
         {isAdmin && (
-          <span className="cs-badge bg-cs-accent-purple/10 text-cs-accent-purple mt-1">ADMIN</span>
+          <span className="cs-badge bg-cs-accent-purple/10 text-cs-accent-purple mt-1">
+            ADMIN
+          </span>
         )}
       </div>
 
-      <nav aria-label="Main navigation" className="flex-1 px-3 space-y-5 overflow-y-auto">
+      <nav
+        aria-label="Main navigation"
+        className="flex-1 px-3 space-y-5 overflow-y-auto"
+      >
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
             <p className="cs-label text-[10px] px-3 mb-1.5">{section.label}</p>
             {section.items.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(item.href)) ||
+                (item.href === "/properties" &&
+                  pathname.startsWith("/onboarding/"));
               const Icon = item.icon;
               return (
-                <Link key={item.href} href={item.href} onClick={onClose} aria-current={isActive ? "page" : undefined} className={isActive ? "cs-sidebar-item-active" : "cs-sidebar-item"}>
-                  <Icon size={16} />{item.label}
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  aria-current={isActive ? "page" : undefined}
+                  className={
+                    isActive ? "cs-sidebar-item-active" : "cs-sidebar-item"
+                  }
+                >
+                  <Icon size={16} />
+                  {item.label}
                 </Link>
               );
             })}
@@ -83,11 +129,19 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
 
       <div className="p-3 border-t border-cs-border space-y-1">
         <div className="px-3 py-1.5">
-          <p className="text-xs text-cs-text-primary truncate">{profile?.full_name || "User"}</p>
-          <p className="text-[10px] text-cs-text-muted truncate">{profile?.email}</p>
+          <p className="text-xs text-cs-text-primary truncate">
+            {profile?.full_name || "User"}
+          </p>
+          <p className="text-[10px] text-cs-text-muted truncate">
+            {profile?.email}
+          </p>
         </div>
-        <button onClick={signOut} className="cs-sidebar-item w-full text-cs-accent-red/70 hover:text-cs-accent-red">
-          <LogOut size={16} />Sign out
+        <button
+          onClick={signOut}
+          className="cs-sidebar-item w-full text-cs-accent-red/70 hover:text-cs-accent-red"
+        >
+          <LogOut size={16} />
+          Sign out
         </button>
       </div>
     </aside>

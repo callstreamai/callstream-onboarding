@@ -1,0 +1,38 @@
+BEGIN;
+DO $$
+DECLARE actor uuid; account_a uuid:=gen_random_uuid(); account_b uuid:=gen_random_uuid(); j uuid:=gen_random_uuid(); other uuid; operation jsonb; counts_before jsonb; old_key text;
+BEGIN
+ SELECT id INTO actor FROM public.profiles WHERE role='admin' LIMIT 1;
+ INSERT INTO public.accounts(id,name) VALUES(account_a,'Property lifecycle test A'),(account_b,'Property lifecycle test B');
+ PERFORM public.create_managed_property(j,actor,'https://www.property-test.example/hotel-a/','Original name',account_a);
+ other:=public.create_managed_property(gen_random_uuid(),actor,'http://property-test.example/hotel-a?campaign=1','Different display name',account_a);
+ IF other<>j THEN RAISE EXCEPTION 'Domain/path identity created a duplicate workspace'; END IF;
+ IF (SELECT count(*) FROM public.spaces WHERE job_id=j)<>9 THEN RAISE EXCEPTION 'Folders duplicated'; END IF;
+ IF (SELECT property_key FROM public.properties WHERE id=j)<>'property-test.example--hotel-a' THEN RAISE EXCEPTION 'Readable identity incorrect'; END IF;
+ other:=public.create_managed_property(gen_random_uuid(),actor,'https://property-test.example/hotel-b/','Other property on same domain',account_a);
+ IF other=j THEN RAISE EXCEPTION 'Different property paths merged'; END IF;
+ other:=public.create_managed_property(gen_random_uuid(),actor,'https://property-test.example/hotel-a/','Different client',account_b);
+ IF other=j THEN RAISE EXCEPTION 'Client accounts merged'; END IF;
+ IF (SELECT count(DISTINCT property_key) FROM public.properties WHERE account_id IN(account_a,account_b))<>3 THEN RAISE EXCEPTION 'Readable identities collided'; END IF;
+ operation:=public.claim_property_operation(j,'crawl','first');
+ PERFORM public.commit_property_crawl(j,(operation->>'token')::uuid,'[{"url":"https://property-test.example/hotel-a/","title":"First","content_text":"First website source retained in history for this property.","status":"fetched"}]','first');
+ operation:=public.claim_property_operation(j,'crawl','first');
+ IF NOT (operation->>'cached')::boolean THEN RAISE EXCEPTION 'Repeated run not cached'; END IF;
+ IF (SELECT count(*) FROM public.property_runs WHERE property_id=j)<>1 THEN RAISE EXCEPTION 'Cached retry added a run'; END IF;
+ operation:=public.claim_property_operation(j,'crawl','rescrape');
+ PERFORM public.commit_property_crawl(j,(operation->>'token')::uuid,'[{"url":"https://property-test.example/hotel-a/","title":"Second","content_text":"New website source after explicit refresh for this property.","status":"fetched"}]','rescrape');
+ IF (SELECT count(*) FROM public.property_runs WHERE property_id=j AND status='completed')<>2 THEN RAISE EXCEPTION 'Rescrape history missing'; END IF;
+ IF (SELECT count(*) FROM public.crawled_pages WHERE job_id=j)<>1 THEN RAISE EXCEPTION 'Rescrape duplicated current sources'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.property_runs WHERE property_id=j AND source_snapshot->0->>'title'='First') THEN RAISE EXCEPTION 'Old source content lost'; END IF;
+ operation:=public.claim_property_operation(j,'crawl','failed');
+ PERFORM public.finish_property_operation(j,(operation->>'token')::uuid,'failed','{}',false);
+ IF NOT EXISTS(SELECT 1 FROM public.property_runs WHERE property_id=j AND status='failed') THEN RAISE EXCEPTION 'Failure not recorded'; END IF;
+ SELECT property_key INTO old_key FROM public.properties WHERE id=j;
+ UPDATE public.onboarding_jobs SET property_url='https://corrected-property.example/' WHERE id=j;
+ IF NOT EXISTS(SELECT 1 FROM public.property_aliases WHERE key=old_key AND property_id=j) THEN RAISE EXCEPTION 'Old property link lost'; END IF;
+ IF (SELECT property_key FROM public.properties WHERE id=j)<>'corrected-property.example' THEN RAISE EXCEPTION 'Website identity did not update'; END IF;
+ IF (SELECT workspace_job_id FROM public.properties WHERE id=j)<>j THEN RAISE EXCEPTION 'Website edit replaced workspace'; END IF;
+ IF has_table_privilege('authenticated','public.properties','SELECT') OR has_table_privilege('anon','public.property_runs','SELECT') OR has_table_privilege('authenticated','public.property_aliases','SELECT') OR has_function_privilege('authenticated','public.create_managed_property(uuid,uuid,text,text,uuid,text)','EXECUTE') THEN RAISE EXCEPTION 'Private data exposed'; END IF;
+END $$;
+SELECT 'Passed: domain identity, account separation, shared-domain paths, stable workspace, cached retries, rescrape history, failure history, source preservation, old-link aliases, server-only permissions' as result;
+ROLLBACK;
