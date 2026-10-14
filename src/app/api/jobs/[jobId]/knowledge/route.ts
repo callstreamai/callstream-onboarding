@@ -7,7 +7,12 @@ import {
   extractKnowledgeChunk,
   consolidateKnowledge,
 } from "@/lib/knowledge/generate";
-import { toCSV, toKnowledgeText, type QA } from "@/lib/knowledge/format";
+import {
+  validateQA,
+  toCSV,
+  toKnowledgeText,
+  type QA,
+} from "@/lib/knowledge/format";
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -57,7 +62,12 @@ export async function POST(
   let release: (() => Promise<void>) | undefined;
   try {
     const { db, user, job } = await requireProject(params.jobId, true);
-    const { action, versionId, acknowledgeWarnings } = await req.json();
+    const {
+      action,
+      versionId,
+      acknowledgeWarnings,
+      qa: editedQA,
+    } = await req.json();
     if (action === "generate") {
       const inventory = await sourceInventory(db, params.jobId);
       const op = await claim(
@@ -176,7 +186,7 @@ export async function POST(
       release = undefined;
       return NextResponse.json({ versionId: version.id });
     }
-    if (!["publish", "refresh", "reconcile"].includes(action))
+    if (!["publish", "refresh", "reconcile", "save"].includes(action))
       throw new AccessError("Choose a valid knowledge action.", 400);
     const { data: version, error } = await db
       .from("knowledge_versions")
@@ -185,6 +195,39 @@ export async function POST(
       .eq("id", versionId)
       .single();
     if (error || !version) throw new AccessError("Version not found.", 404);
+    if (action === "save") {
+      if (version.status !== "draft")
+        throw new AccessError("Only unpublished drafts can be edited.", 409);
+      let qa: QA[];
+      try {
+        qa = validateQA(
+          editedQA,
+          new Set(version.source_manifest.map((s: { id: string }) => s.id)),
+        );
+      } catch {
+        throw new AccessError(
+          "Every answer needs a question, an answer, and a supporting source.",
+          422,
+        );
+      }
+      if (JSON.stringify(qa).length > 1000000)
+        throw new AccessError("This draft is too large.", 422);
+      const saved = await db
+        .from("knowledge_versions")
+        .update({ qa })
+        .eq("id", version.id)
+        .eq("status", "draft")
+        .eq("qa", JSON.stringify(version.qa))
+        .select("id")
+        .maybeSingle();
+      if (saved.error) throw saved.error;
+      if (!saved.data)
+        throw new AccessError(
+          "This version changed while you were editing. Reload it before continuing.",
+          409,
+        );
+      return NextResponse.json({ saved: true });
+    }
     const apiKey = process.env.BLAND_API_KEY;
     if (!apiKey)
       throw new AccessError(
@@ -308,6 +351,7 @@ export async function POST(
       .update({ status: "publishing", error_message: null })
       .eq("id", version.id)
       .eq("status", "draft")
+      .eq("qa", JSON.stringify(version.qa))
       .select("id")
       .maybeSingle();
     if (claimError) throw claimError;

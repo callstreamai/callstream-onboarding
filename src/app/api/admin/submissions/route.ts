@@ -1,6 +1,8 @@
+import {guardAdmin} from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

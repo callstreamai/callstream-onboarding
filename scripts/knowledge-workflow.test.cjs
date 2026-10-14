@@ -190,6 +190,7 @@ const draft = () => ({
   id: "version",
   status: "draft",
   source_hash: "source",
+  source_manifest: [{ id: "a", name: "Website" }],
   created_at: "2026-10-14T10:00:00Z",
   qa: [{ question: "Q", answer: "A", sources: ["a"] }],
   warnings: [],
@@ -344,9 +345,97 @@ test("project access verifies login, membership and admin-only operations", asyn
   );
 });
 
-const quality=load("src/lib/knowledge/source-quality.ts");
-test("blocked website interstitials cannot become property answers",()=>{
- assert.equal(quality.isBlockedSource("Attention Required! | Cloudflare","Please enable cookies. Sorry, you have been blocked"),true);
- assert.equal(quality.isBlockedSource("Just a moment...","Checking your browser before accessing the property"),true);
- assert.equal(quality.isBlockedSource("Property FAQ","Our guest Wi-Fi uses security measures. Breakfast is at 7 AM."),false);
+const quality = load("src/lib/knowledge/source-quality.ts");
+test("blocked website interstitials cannot become property answers", () => {
+  assert.equal(
+    quality.isBlockedSource(
+      "Attention Required! | Cloudflare",
+      "Please enable cookies. Sorry, you have been blocked",
+    ),
+    true,
+  );
+  assert.equal(
+    quality.isBlockedSource(
+      "Just a moment...",
+      "Checking your browser before accessing the property",
+    ),
+    true,
+  );
+  assert.equal(
+    quality.isBlockedSource(
+      "Property FAQ",
+      "Our guest Wi-Fi uses security measures. Breakfast is at 7 AM.",
+    ),
+    false,
+  );
+});
+
+test("draft edits require valid references and published versions are immutable", async () => {
+  const invalid = api({ version: draft() });
+  assert.equal(
+    (
+      await invalid.post({
+        action: "save",
+        versionId: "version",
+        qa: [{ question: "Q", answer: "A", sources: ["missing"] }],
+      })
+    ).status,
+    422,
+  );
+  const published = api({ version: { ...draft(), status: "published" } });
+  assert.equal(
+    (await published.post({ action: "save", versionId: "version", qa: [] }))
+      .status,
+    409,
+  );
+  const valid = api({ version: draft() });
+  const res = await valid.post({
+    action: "save",
+    versionId: "version",
+    qa: [
+      {
+        question: "Where? / Address?",
+        answer: "Reviewed answer",
+        sources: ["a"],
+      },
+    ],
+  });
+  assert.equal(res.status, 200);
+  assert.equal(valid.counts().publishes, 0);
+});
+test("every admin endpoint denies access before reading or changing account data", async () => {
+  const path = require("node:path");
+  function files(dir) {
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((entry) =>
+        entry.isDirectory()
+          ? files(path.join(dir, entry.name))
+          : entry.name === "route.ts"
+            ? [path.join(dir, entry.name)]
+            : [],
+      );
+  }
+  let checked = 0;
+  for (const file of files("src/app/api/admin")) {
+    const source = fs.readFileSync(file, "utf8");
+    const imports = {};
+    for (const match of source.matchAll(/from ["']([^"']+)["']/g))
+      imports[match[1]] = {};
+    imports["next/server"] = next;
+    imports["@/lib/access"] = {
+      guardAdmin: async () =>
+        Response.json({ error: "Denied" }, { status: 403 }),
+    };
+    const route = load(file, imports);
+    for (const method of ["GET", "POST", "PATCH", "DELETE"])
+      if (route[method]) {
+        const r = await route[method](new Request("https://example.com"), {
+          params: { accountId: "a", userId: "u" },
+        });
+        assert.equal(r.status, 403, file + " " + method);
+        checked++;
+      }
+  }
+  assert.ok(checked >= 15);
 });

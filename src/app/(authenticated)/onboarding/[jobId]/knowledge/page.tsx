@@ -26,6 +26,8 @@ export default function KnowledgePage() {
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
   const [ack, setAck] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editedQA, setEditedQA] = useState<Version["qa"]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const endpoint = `/api/jobs/${jobId}/knowledge`;
   const load = useCallback(async () => {
@@ -83,10 +85,12 @@ export default function KnowledgePage() {
           action,
           versionId: version?.id,
           acknowledgeWarnings: ack,
+          qa: action === "save" ? editedQA : undefined,
         });
       } while (result.pending);
       if (result.versionId) setSelected(result.versionId);
       setAck(false);
+      setEditing(false);
       await load();
       setProgress(
         action === "generate"
@@ -178,6 +182,7 @@ export default function KnowledgePage() {
                   aria-label="Knowledge version"
                   value={version.id}
                   onChange={(e) => {
+                    setEditing(false);
                     setSelected(e.target.value);
                     setAck(false);
                   }}
@@ -214,7 +219,7 @@ export default function KnowledgePage() {
                     <li key={i}>{warning}</li>
                   ))}
                 </ul>
-                {version.status === "draft" && (
+                {version.status === "draft" && !editing && (
                   <label className="flex gap-2 text-sm mt-4">
                     <input
                       type="checkbox"
@@ -232,11 +237,12 @@ export default function KnowledgePage() {
               </p>
             )}
             <div className="flex flex-wrap items-center gap-3">
-              {version.status === "draft" && (
+              {version.status === "draft" && !editing && (
                 <button
                   className="cs-btn-primary"
                   disabled={
                     busy ||
+                    editing ||
                     version.source_hash !== hash ||
                     (!!version.warnings.length && !ack)
                   }
@@ -265,6 +271,38 @@ export default function KnowledgePage() {
                   </button>
                 )}
             </div>
+            <div className="flex gap-3 flex-wrap">
+              {version.status === "draft" && (
+                <button
+                  className="cs-btn-secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    if (editing) {
+                      setEditing(false);
+                    } else {
+                      setEditedQA(version.qa.map((row) => ({ ...row })));
+                      setEditing(true);
+                    }
+                  }}
+                >
+                  {editing ? "Cancel editing" : "Edit draft answers"}
+                </button>
+              )}
+              {editing && (
+                <button
+                  className="cs-btn-primary"
+                  disabled={busy}
+                  onClick={() => run("save")}
+                >
+                  Save draft changes
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-cs-text-secondary">
+              AI-generated draft: verify every answer against current property
+              information before publishing. Resolve conflicting hours, prices,
+              and policies with your team.
+            </p>
             <p className="text-xs text-cs-text-muted">
               Admin only: each publish creates a new Bland knowledge item. Your
               team selects the new version for the agent. Existing agent
@@ -282,10 +320,46 @@ export default function KnowledgePage() {
             )}
           </div>
           <div className="space-y-3">
-            {version.qa.map((row, i) => (
+            {(editing ? editedQA : version.qa).map((row, i) => (
               <article key={i} className="cs-card p-5">
-                <h2 className="text-sm font-medium">{row.question}</h2>
-                <p className="text-sm text-cs-text-secondary mt-3 whitespace-pre-wrap">
+                {editing ? (
+                  <>
+                    <label className="block text-xs mb-2">
+                      Question and alternate phrasings
+                      <textarea
+                        className="cs-input mt-2"
+                        value={row.question}
+                        onChange={(e) =>
+                          setEditedQA((rows) =>
+                            rows.map((q, n) =>
+                              n === i ? { ...q, question: e.target.value } : q,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <label className="block text-xs">
+                      Spoken answer
+                      <textarea
+                        className="cs-input mt-2 min-h-24"
+                        value={row.answer}
+                        onChange={(e) =>
+                          setEditedQA((rows) =>
+                            rows.map((q, n) =>
+                              n === i ? { ...q, answer: e.target.value } : q,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <h2 className="text-sm font-medium">{row.question}</h2>
+                )}
+                <p
+                  hidden={editing}
+                  className="text-sm text-cs-text-secondary mt-3 whitespace-pre-wrap"
+                >
                   {row.answer}
                 </p>
                 <details className="mt-3 text-xs text-cs-text-muted">

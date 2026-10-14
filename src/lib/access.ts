@@ -78,3 +78,12 @@ export async function guardProject(jobId: string, adminOnly = false) {
     return accessResponse(error);
   }
 }
+
+export async function guardAdmin() {
+  try {
+    await requireAdmin();
+    return null;
+  } catch (error) {
+    return accessResponse(error);
+  }
+}

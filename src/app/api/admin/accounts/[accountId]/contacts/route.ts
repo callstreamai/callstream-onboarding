@@ -1,3 +1,4 @@
+import {guardAdmin} from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ensureContactPortalUser } from "@/lib/provisionContactUser";
@@ -6,6 +7,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { accountId: string } }
 ) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabase = createServiceClient();
     const body = await req.json();
@@ -48,6 +50,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { accountId: string } }
 ) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabase = createServiceClient();
     const { contactId } = await req.json();
