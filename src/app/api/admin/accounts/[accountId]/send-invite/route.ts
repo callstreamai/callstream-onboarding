@@ -1,3 +1,4 @@
+import {guardAdmin} from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ensureContactPortalUser } from "@/lib/provisionContactUser";
@@ -6,6 +7,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { accountId: string } }
 ) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const { email, fullName } = await req.json();
     if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });

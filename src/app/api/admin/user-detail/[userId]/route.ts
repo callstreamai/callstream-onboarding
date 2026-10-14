@@ -1,8 +1,10 @@
+import {guardAdmin} from "@/lib/access";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(_req: Request, { params }: { params: { userId: string } }) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabase = createServiceClient();
     const adminClient = createClient(

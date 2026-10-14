@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Building2, Globe, FolderOpen, ArrowRight } from "lucide-react";
@@ -15,6 +15,28 @@ export default function ManagedOnboarding({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [jobId, setJobId] = useState("");
+  const [accounts, setAccounts] = useState<
+    { id: string; name: string; property_url?: string }[]
+  >([]);
+  const [selectedAccount, setSelectedAccount] = useState(accountId || "");
+  useEffect(() => {
+    fetch("/api/admin/accounts")
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok)
+          throw new Error(d.error || "Could not load client accounts.");
+        setAccounts(d.accounts || []);
+        const current = d.accounts?.find(
+          (a: { id: string }) => a.id === accountId,
+        );
+        if (current) {
+          setName(current.name || "");
+          setUrl(current.property_url || "");
+        }
+      })
+      .catch((e) => setError(e.message));
+  }, [accountId]);
+
   async function post(path: string, body: unknown) {
     const res = await fetch(path, {
       method: "POST",
@@ -33,14 +55,19 @@ export default function ManagedOnboarding({
     try {
       const key =
         "managed-property:" +
-        JSON.stringify([accountId, name.trim(), url.trim()]);
+        JSON.stringify([selectedAccount, name.trim(), url.trim()]);
       let requestId = sessionStorage.getItem(key);
       if (!requestId) {
         requestId = crypto.randomUUID();
         sessionStorage.setItem(key, requestId);
       }
       setMessage("Creating your property workspace…");
-      const job = await post("/api/jobs", { requestId, name, url, accountId });
+      const job = await post("/api/jobs", {
+        requestId,
+        name,
+        url,
+        accountId: selectedAccount,
+      });
       setJobId(job.jobId);
       setMessage("Reading the property website…");
       await post("/api/crawl", { jobId: job.jobId });
@@ -90,6 +117,46 @@ export default function ManagedOnboarding({
         ))}
       </div>
       <form onSubmit={create} className="cs-card p-6 space-y-5">
+        <div>
+          <label htmlFor="client-account" className="block text-sm mb-2">
+            Client account
+          </label>
+          <select
+            id="client-account"
+            required
+            className="cs-input"
+            disabled={busy || !!accountId}
+            value={selectedAccount}
+            onChange={(e) => {
+              setSelectedAccount(e.target.value);
+              const a = accounts.find((a) => a.id === e.target.value);
+              if (a) {
+                setName(a.name);
+                setUrl(a.property_url || "");
+              }
+            }}
+          >
+            <option value="">Choose a client account</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-cs-text-muted mt-2">
+            Existing account members can access this workspace.{" "}
+            <Link
+              href={
+                selectedAccount
+                  ? `/admin/accounts/${selectedAccount}`
+                  : "/admin/accounts"
+              }
+              className="text-cs-accent-brand"
+            >
+              Manage client access
+            </Link>
+          </p>
+        </div>
         <div>
           <label htmlFor="property-name" className="block text-sm mb-2">
             Property name

@@ -1,7 +1,9 @@
+import {guardAdmin} from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabase = createServiceClient();
 
@@ -19,6 +21,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabase = createServiceClient();
     const { userId, role } = await req.json();

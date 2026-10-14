@@ -1,7 +1,9 @@
+import {guardAdmin} from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET() {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabase = createServiceClient();
     const { data: accounts } = await supabase
@@ -16,6 +18,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied=await guardAdmin();if(denied)return denied;
   try {
     const supabase = createServiceClient();
     const body = await req.json();
