@@ -1,3 +1,4 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { processFile } from "@/lib/ingest/file-processor";
@@ -7,6 +8,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { jobId: string } }
 ) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const { jobId } = params;
@@ -92,6 +95,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { jobId: string } }
 ) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
 

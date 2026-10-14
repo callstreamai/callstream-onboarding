@@ -36,6 +36,12 @@ export async function processFile(
       };
     }
 
+    if (fileName.toLowerCase().endsWith(".docx")) {
+      const mammoth = require("mammoth");
+      const result = await mammoth.extractRawText({ buffer: file });
+      return { ...base, extractedText: result.value, metadata: {}, processingStatus: result.value.trim() ? "complete" : "failed" };
+    }
+
     // Plain text / markdown / CSV
     if (
       mimeType.startsWith("text/") ||
@@ -56,9 +62,9 @@ export async function processFile(
     if (mimeType.startsWith("image/")) {
       return {
         ...base,
-        extractedText: "[Image file - text extraction via OCR/LLM pending]",
+        extractedText: "",
         metadata: { requiresOCR: true },
-        processingStatus: "complete",
+        processingStatus: "failed",
       };
     }
 
@@ -67,7 +73,7 @@ export async function processFile(
       ...base,
       extractedText: "",
       metadata: { unsupported: true },
-      processingStatus: "complete",
+      processingStatus: "failed",
     };
   } catch (err) {
     return {

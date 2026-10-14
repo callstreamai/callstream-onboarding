@@ -1,14 +1,17 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const body = await req.json();
 
     const { data: task, error } = await supabase
       .from("project_tasks")
-      .insert({ job_id: params.jobId, ...body })
+      .insert({ ...body, job_id: params.jobId })
       .select()
       .single();
     if (error) throw error;
@@ -31,13 +34,16 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const { taskId, ...updates } = await req.json();
+    delete updates.job_id; delete updates.id;
     if (updates.status === "done" && !updates.completed_at) {
       updates.completed_at = new Date().toISOString();
     }
-    const { error } = await supabase.from("project_tasks").update(updates).eq("id", taskId);
+    const { error } = await supabase.from("project_tasks").update(updates).eq("id", taskId).eq("job_id",params.jobId);
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -45,11 +51,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { jobId: str
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const { taskId } = await req.json();
-    await supabase.from("project_tasks").delete().eq("id", taskId);
+    await supabase.from("project_tasks").delete().eq("id", taskId).eq("job_id",params.jobId);
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });

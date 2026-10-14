@@ -55,11 +55,11 @@ export default function MySubmissionsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">{isAdmin ? "My Submissions" : "My Projects"}</h1>
+        <h1 className="text-2xl font-semibold">{isAdmin ? "My Properties" : "My Projects"}</h1>
         {isAdmin && (
           <Link href="/onboarding" className="cs-btn-primary text-sm">
             <FileInput size={16} />
-            New Onboarding
+            Create property
           </Link>
         )}
       </div>
@@ -72,30 +72,30 @@ export default function MySubmissionsPage() {
           <p className="text-cs-text-secondary">{isAdmin ? "No submissions yet" : "No projects assigned yet"}</p>
           {isAdmin && (
             <Link href="/onboarding" className="cs-btn-primary text-sm mt-4 inline-flex">
-              Start Onboarding
+              Create property
             </Link>
           )}
         </div>
       ) : (
         <div className="space-y-2">
           {jobs.map((job) => (
-            <div key={job.id} className="cs-card-hover flex items-center justify-between p-4">
+            <div key={job.id} className="cs-card-hover flex flex-wrap gap-4 items-center justify-between p-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3">
                   <p className="text-sm text-cs-text-primary font-medium">{displayName(job)}</p>
                   <span className={statusBadge(job.status)}>
-                    {job.status.replace(/_/g, " ")}
+                    {isAdmin?job.status.replace(/_/g, " "):job.status==="approved"?"Ready":"In preparation"}
                   </span>
                 </div>
                 <p className="text-xs text-cs-text-muted mt-1">
-                  {job.pages_crawled} pages · {job.files_processed} files
-                  {job.extraction_confidence ? " · " + Math.round(job.extraction_confidence * 100) + "% confidence" : ""}
+                  {isAdmin?`${job.pages_crawled} pages · ${job.files_processed} files`:"Shared workspace"}
+                  {isAdmin && job.extraction_confidence ? " · " + Math.round(job.extraction_confidence * 100) + "% confidence" : ""}
                   {" · "}
                   {new Date(job.created_at).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {job.status === "approved" && (
+                {isAdmin && job.status === "approved" && (
                   <a
                     href={"/api/jobs/" + job.id + "/export"}
                     className="cs-btn-secondary text-xs py-1.5"

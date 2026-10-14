@@ -38,7 +38,7 @@ export default function VoiceStudio() {
     setLibraryError("");
     (async () => {
       try {
-        const res = await fetch("/api/bland/voices", { signal: controller.signal });
+        const res = await fetch("/api/voice/voices", { signal: controller.signal });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "The voice library could not be loaded.");
         if (!Array.isArray(data.voices)) throw new Error("The voice library could not be loaded.");
@@ -83,7 +83,7 @@ export default function VoiceStudio() {
     const timer = setTimeout(() => controller.abort(), 35000);
     setState("loading"); setError(""); setPlayHint("");
     try {
-      const res = await fetch("/api/bland/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, voice: selected }), signal: controller.signal });
+      const res = await fetch("/api/voice/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, voice: selected }), signal: controller.signal });
       if (!res.ok) { const data = await res.json(); throw new Error(data.error || "We could not generate this preview."); }
       if (!res.headers.get("content-type")?.startsWith("audio/")) throw new Error("The voice service returned an unreadable preview. Please try again.");
       const blob = await res.blob();
@@ -118,12 +118,12 @@ export default function VoiceStudio() {
         <section className="cs-card p-5 sm:p-6" aria-labelledby="voice-library-heading">
           <div className="flex items-center justify-between gap-3 mb-5"><div><p className="cs-label mb-1">01 / CHOOSE</p><h2 id="voice-library-heading" className="text-lg font-semibold">Your voice library</h2></div><span className="cs-badge bg-cs-border text-cs-text-secondary">{voices.length} voices</span></div>
           <label className="relative block mb-3"><Search size={16} className="absolute left-3 top-3 text-cs-text-muted" /><input aria-label="Search voices" type="search" className="cs-input pl-10" placeholder="Search name, language, or style" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} /></label>
-          <div className="flex gap-2 mb-5">{[ ["all", "All voices"], ["recommended", "Bland curated"] ].map(([value, label]) => <button key={value} onClick={() => { setFilter(value); setPage(0); }} aria-pressed={filter === value} className={`rounded-full px-3 py-1.5 text-xs border ${filter === value ? "border-cs-accent-brand/50 text-cs-accent-brand bg-cs-accent-brand/10" : "border-cs-border text-cs-text-secondary"}`}>{label}</button>)}</div>
+          <div className="flex gap-2 mb-5">{[ ["all", "All voices"], ["recommended", "Curated"] ].map(([value, label]) => <button key={value} onClick={() => { setFilter(value); setPage(0); }} aria-pressed={filter === value} className={`rounded-full px-3 py-1.5 text-xs border ${filter === value ? "border-cs-accent-brand/50 text-cs-accent-brand bg-cs-accent-brand/10" : "border-cs-border text-cs-text-secondary"}`}>{label}</button>)}</div>
           {libraryLoading ? <p role="status" className="flex gap-2 items-center py-12 text-sm text-cs-text-secondary"><Loader2 size={16} className="animate-spin" />Loading your voices…</p> : libraryError ? <div role="alert" className="py-8"><p className="text-sm text-cs-accent-red mb-3">{libraryError}</p><button className="cs-btn-secondary" onClick={() => setReload(n => n + 1)}><RefreshCw size={14} />Reload voices</button></div> : <>
             <div className="grid sm:grid-cols-2 gap-3">{visible.map(v => <button key={v.id} aria-pressed={selected === v.id} onClick={() => { if (selected !== v.id) { resetPreview(); setSelected(v.id); } }} className={`rounded-xl p-4 text-left border transition-colors ${selected === v.id ? "border-cs-accent-brand/60 bg-cs-accent-brand/10" : "border-cs-border bg-cs-surface hover:border-cs-border-hover"}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-medium text-sm truncate">{v.name}</span>{selected === v.id ? <Check size={16} className="shrink-0 text-cs-accent-brand" /> : <Mic2 size={16} className="shrink-0 text-cs-text-muted" />}</div>
-              <p className="text-xs text-cs-text-secondary mt-2 line-clamp-2 min-h-8">{v.tags.filter(t => t !== "Bland Curated").slice(0, 3).join(" · ") || v.description || "Voice preview available"}</p>
-              <p className="text-[10px] text-cs-text-muted mt-3">{v.service === "BTTS_V3" ? "V3" : "V2"}{v.recommended ? " · Curated" : ""}</p>
+              <p className="text-xs text-cs-text-secondary mt-2 line-clamp-2 min-h-8">{v.tags.filter(t => t !== "Call Stream Curated").slice(0, 3).join(" · ") || v.description || "Voice preview available"}</p>
+              <p className="text-[10px] text-cs-text-muted mt-3">Voice preview{v.recommended ? " · Curated" : ""}</p>
             </button>)}</div>
             {!visible.length && <p className="text-sm text-cs-text-secondary py-8">{voices.length ? "No voices match these filters. Try a different search." : "No compatible voices are available for this account. Contact your administrator."}</p>}
             {filtered.length > pageSize && <div className="flex justify-between items-center mt-5 gap-2"><button className="cs-btn-secondary text-xs" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</button><span className="text-xs text-cs-text-secondary">{page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} of {filtered.length}</span><button className="cs-btn-secondary text-xs" disabled={(page + 1) * pageSize >= filtered.length} onClick={() => setPage(p => p + 1)}>Next</button></div>}

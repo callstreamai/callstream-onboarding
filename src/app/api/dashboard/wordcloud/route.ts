@@ -1,3 +1,4 @@
+import {requireProject,accessResponse} from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -14,6 +15,8 @@ export async function GET(req: NextRequest) {
     if (ids.length === 0) {
       return NextResponse.json({ words: [], linkCounts: {} });
     }
+
+    for(const id of ids)await requireProject(id);
 
     // Get space documents for these jobs
     const { data: spaces } = await supabase
@@ -79,7 +82,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ words, linkCounts });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "unknown error";
-    return NextResponse.json({ words: [], linkCounts: {}, error: msg });
+    return accessResponse(e);
   }
 }

@@ -1,3 +1,4 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -42,6 +43,8 @@ function enrichComment(comment: any, profilesById: Map<string, any>) {
 }
 
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
 
@@ -77,6 +80,8 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
 }
 
 export async function POST(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const userClient = getUserClient();
     const { data: { user } } = await userClient.auth.getUser();

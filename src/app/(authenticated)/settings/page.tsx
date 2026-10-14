@@ -59,7 +59,7 @@ export default function SettingsPage() {
       });
 
     // Check Bland (reuse the voices endpoint)
-    fetch("/api/bland/voices")
+    fetch("/api/voice/voices")
       .then((r) => r.json())
       .then((data) => {
         const voices = data.voices || [];
@@ -136,7 +136,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="cs-label block mb-1.5">VOICES</label>
-              <p className="text-sm text-cs-text-secondary">Bland Curated (V2 / V3) only</p>
+              <p className="text-sm text-cs-text-secondary">Curated (V2 / V3) only</p>
             </div>
           </div>
         </div>
