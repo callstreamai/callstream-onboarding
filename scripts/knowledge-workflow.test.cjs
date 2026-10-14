@@ -343,3 +343,10 @@ test("project access verifies login, membership and admin-only operations", asyn
     true,
   );
 });
+
+const quality=load("src/lib/knowledge/source-quality.ts");
+test("blocked website interstitials cannot become property answers",()=>{
+ assert.equal(quality.isBlockedSource("Attention Required! | Cloudflare","Please enable cookies. Sorry, you have been blocked"),true);
+ assert.equal(quality.isBlockedSource("Just a moment...","Checking your browser before accessing the property"),true);
+ assert.equal(quality.isBlockedSource("Property FAQ","Our guest Wi-Fi uses security measures. Breakfast is at 7 AM."),false);
+});

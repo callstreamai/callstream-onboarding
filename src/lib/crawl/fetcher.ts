@@ -1,3 +1,4 @@
+import { isBlockedSource } from "@/lib/knowledge/source-quality";
 import * as cheerio from "cheerio";
 
 export interface FetchResult {
@@ -74,6 +75,7 @@ export async function fetchPage(url: string): Promise<FetchResult> {
     const title = $("title").text().trim() || $("h1").first().text().trim() || "";
     const text = $("body").text().replace(/\s+/g, " ").trim();
 
+    if(isBlockedSource(title,text))throw new Error("The website returned an access-block page. Provide property documents or retry when access is available.");
     return {
       url,
       html,
