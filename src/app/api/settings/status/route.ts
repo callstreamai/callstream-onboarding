@@ -1,7 +1,10 @@
+import {requireAdmin,accessResponse} from "@/lib/access";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
+export const dynamic="force-dynamic";
 export async function GET() {
+  try {await requireAdmin();}catch(error){return accessResponse(error);}
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const openaiKey = process.env.OPENAI_API_KEY || "";
   const blandKey = process.env.BLAND_API_KEY || "";

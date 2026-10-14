@@ -1,7 +1,10 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const { data: job, error } = await supabase
@@ -18,6 +21,8 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const jobId = params.jobId;

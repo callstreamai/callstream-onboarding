@@ -13,16 +13,17 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const pathname = usePathname();
   const { profile, isAdmin, signOut } = useAuth();
 
-  const submissionsLabel = isAdmin ? "My Submissions" : "My Projects";
+  const submissionsLabel = isAdmin ? "My Properties" : "My Projects";
   const mainItems: { label: string; href: string; icon: React.ElementType }[] = isAdmin
     ? [
         { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Onboarding", href: "/onboarding", icon: FileInput },
+        { label: "Create property", href: "/onboarding", icon: FileInput },
         { label: submissionsLabel, href: "/submissions", icon: FolderOpen },
         { label: "Voice Studio", href: "/voice-preview", icon: Mic2 },
       ]
     : [
-        { label: "Status", href: "/", icon: LayoutDashboard },
+        { label: "Overview", href: "/", icon: LayoutDashboard },
+        { label: "My Projects", href: "/submissions", icon: FolderOpen },
       ];
 
   const NAV_SECTIONS = [

@@ -12,6 +12,7 @@ export async function parseSitemap(baseUrl: string): Promise<SitemapUrl[]> {
 
   try {
     const res = await fetch(sitemapUrl, {
+      signal: AbortSignal.timeout(10000),
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; CallStreamBot/1.0; +https://callstreamai.com)",
       },
@@ -29,7 +30,7 @@ export async function parseSitemap(baseUrl: string): Promise<SitemapUrl[]> {
       : [parsed.urlset.url];
 
     for (const entry of entries) {
-      if (entry.loc) {
+      if (entry.loc && new URL(entry.loc,baseUrl).origin === new URL(baseUrl).origin) {
         urls.push({
           loc: entry.loc,
           lastmod: entry.lastmod || undefined,

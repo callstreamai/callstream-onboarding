@@ -1,3 +1,4 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 
 const SB_URL = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -24,6 +25,8 @@ async function isAdmin(req: NextRequest): Promise<boolean> {
 }
 
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const res = await fetch(
       SB_URL() + "/rest/v1/project_milestones?job_id=eq." + params.jobId + "&select=*&order=sort_order",
@@ -37,6 +40,8 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
 }
 
 export async function POST(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     if (!(await isAdmin(req))) {
       return NextResponse.json({ error: "Admin only" }, { status: 403 });
@@ -82,6 +87,8 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     if (!(await isAdmin(req))) {
       return NextResponse.json({ error: "Admin only" }, { status: 403 });
@@ -107,6 +114,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { jobId: str
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     if (!(await isAdmin(req))) {
       return NextResponse.json({ error: "Admin only" }, { status: 403 });

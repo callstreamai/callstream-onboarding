@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import JobTabs from "@/components/project/JobTabs";
+import SubmissionBar from "@/components/project/SubmissionBar";
 import CommentFeed from "@/components/project/CommentFeed";
 import {
   Folder, FileText, Upload, Plus,
@@ -83,7 +84,7 @@ function IconPicker({
             className={
               "w-8 h-8 rounded-md flex items-center justify-center transition " +
               (value === key
-                ? "bg-cs-accent-blue text-white"
+                ? "bg-cs-accent-brand text-white"
                 : "hover:bg-cs-border/60 text-cs-text-muted hover:text-cs-text-primary")
             }
           >
@@ -130,7 +131,7 @@ export default function WorkspacePage() {
     const res = await fetch("/api/jobs/" + jobId + "/spaces");
     if (res.ok) {
       const data = await res.json();
-      if (data.spaces.length === 0) {
+      if (data.spaces.length === 0 && isAdmin) {
         const initRes = await fetch("/api/jobs/" + jobId + "/spaces", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -146,7 +147,7 @@ export default function WorkspacePage() {
     }
 
     setLoading(false);
-  }, [jobId, user?.id]);
+  }, [jobId, user?.id, isAdmin]);
 
   const loadLinks = useCallback(async (spaceId: string) => {
     const res = await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/links");
@@ -349,25 +350,27 @@ export default function WorkspacePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-cs-text-primary">Property Workspace</h1>
-            <p className="text-sm text-cs-text-muted">Upload and organize property knowledge</p>
+            <h1 className="text-lg font-semibold text-cs-text-primary">Shared workspace</h1>
+            <p className="text-sm text-cs-text-muted">A shared home for your property documents and team updates</p>
           </div>
           <div className="flex gap-2">
             <a
               href={`/api/jobs/${jobId}/workspace/export`}
               download
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-card border border-cs-border text-cs-text-secondary hover:text-cs-text-primary hover:border-cs-accent-blue/50 transition"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-card border border-cs-border text-cs-text-secondary hover:text-cs-text-primary hover:border-cs-accent-brand/50 transition"
             >
               <Download size={13} /> Download all docs
             </a>
-            <button
+            {isAdmin && <button
               onClick={() => setShowNewSpace(!showNewSpace)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-accent-blue/10 text-cs-accent-blue hover:bg-cs-accent-blue/20"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-accent-brand/10 text-cs-accent-brand hover:bg-cs-accent-brand/20"
             >
-              <Plus size={13} /> Add space
-            </button>
+              <Plus size={13} /> Add folder
+            </button>}
           </div>
         </div>
+
+        <SubmissionBar jobId={jobId} revision={spaces.reduce((total,s)=>total+(s.space_documents?.length||0),0)}/>
 
         {/* New space form */}
         {showNewSpace && (
@@ -378,10 +381,10 @@ export default function WorkspacePage() {
               <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setShowNewIconPicker(!showNewIconPicker)}
-                  className="w-10 h-10 rounded-lg bg-cs-accent-blue/10 border border-cs-border hover:border-cs-accent-blue flex items-center justify-center transition"
+                  className="w-10 h-10 rounded-lg bg-cs-accent-brand/10 border border-cs-border hover:border-cs-accent-brand flex items-center justify-center transition"
                   title="Choose icon"
                 >
-                  <NewIconComp size={18} className="text-cs-accent-blue" />
+                  <NewIconComp size={18} className="text-cs-accent-brand" />
                 </button>
                 {showNewIconPicker && (
                   <IconPicker
@@ -425,7 +428,7 @@ export default function WorkspacePage() {
         )}
 
         {/* Spaces grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {spaces.map((space) => {
             const IconComp = ICON_MAP[space.icon] || Folder;
             const docCount = space.space_documents?.length || 0;
@@ -452,15 +455,15 @@ export default function WorkspacePage() {
                     }
                   }}
                   className={
-                    "relative w-full cs-card p-4 text-left transition hover:border-cs-accent-blue/50 cursor-pointer " +
-                    (activeSpace === space.id ? "border-cs-accent-blue" : "")
+                    "relative w-full cs-card p-4 text-left transition hover:border-cs-accent-brand/50 cursor-pointer " +
+                    (activeSpace === space.id ? "border-cs-accent-brand" : "")
                   }
                 >
-                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                  {isAdmin && <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); beginEditSpace(space); }}
-                      className="w-7 h-7 rounded-md bg-cs-bg/90 border border-cs-border text-cs-text-muted hover:text-cs-accent-blue hover:border-cs-accent-blue/50 flex items-center justify-center transition"
+                      className="w-7 h-7 rounded-md bg-cs-bg/90 border border-cs-border text-cs-text-muted hover:text-cs-accent-brand hover:border-cs-accent-brand/50 flex items-center justify-center transition"
                       title="Edit space"
                       aria-label={`Edit ${space.name}`}
                     >
@@ -477,20 +480,20 @@ export default function WorkspacePage() {
                       <Trash2 size={13} />
                     </button>
                   </div>
-                  <div className="flex items-start justify-between gap-12 mb-2">
+                  }<div className="flex items-start justify-between gap-12 mb-2">
                     {/* Icon — click to change */}
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
-                        setIconPickerFor(isPickerOpen ? null : space.id);
+                        if(isAdmin)setIconPickerFor(isPickerOpen ? null : space.id);
                       }}
-                      className="w-8 h-8 rounded-md bg-cs-accent-blue/10 flex items-center justify-center cursor-pointer hover:bg-cs-accent-blue/25 hover:ring-1 hover:ring-cs-accent-blue/40 transition group"
-                      title="Click to change icon"
+                      className="w-8 h-8 rounded-md bg-cs-accent-brand/10 flex items-center justify-center cursor-pointer hover:bg-cs-accent-brand/25 hover:ring-1 hover:ring-cs-accent-brand/40 transition group"
+                      title={isAdmin?"Click to change icon":space.name}
                     >
-                      <IconComp size={16} className="text-cs-accent-blue" />
+                      <IconComp size={16} className="text-cs-accent-brand" />
                     </div>
                     <div className="flex gap-1 pr-16">
-                      {docCount > 0 && (
+                      {true && (
                         <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
                           {docCount} file{docCount !== 1 ? "s" : ""}
                         </span>
@@ -520,7 +523,7 @@ export default function WorkspacePage() {
                 )}
 
                 {editingSpaceId === space.id && (
-                  <div className="mt-2 cs-card p-3 space-y-2 border-cs-accent-blue/40">
+                  <div className="mt-2 cs-card p-3 space-y-2 border-cs-accent-brand/40">
                     <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Edit space</p>
                     <input
                       value={editSpaceName}
@@ -556,7 +559,7 @@ export default function WorkspacePage() {
             </div>
 
             {/* Upload area */}
-            <label className="block border-2 border-dashed border-cs-border rounded-lg p-6 text-center cursor-pointer hover:border-cs-accent-blue/50 transition">
+            <label className="block border-2 border-dashed border-cs-border rounded-lg p-6 text-center cursor-pointer hover:border-cs-accent-brand/50 transition">
               <input
                 type="file"
                 multiple
@@ -566,10 +569,10 @@ export default function WorkspacePage() {
               />
               <Upload size={20} className="mx-auto text-cs-text-muted mb-2" />
               <p className="text-xs text-cs-text-secondary">
-                {uploading ? "Uploading..." : "Drop files here or click to upload"}
+                {uploading ? "Uploading..." : "Choose files to upload"}
               </p>
               <p className="text-[10px] text-cs-text-muted mt-1">
-                PDFs, Word docs, images, spreadsheets, videos — any property document
+                25 MB per file. Searchable PDF, DOCX, CSV, and text support automatic processing. Other files are stored for manual review.
               </p>
             </label>
 
@@ -585,14 +588,10 @@ export default function WorkspacePage() {
                         {doc.file_type} · {formatSize(doc.file_size || 0)} · {new Date(doc.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    {doc.processing_status === "complete" ? (
-                      <CheckCircle2 size={12} className="text-cs-accent-green flex-shrink-0" />
-                    ) : (
-                      <Clock size={12} className="text-cs-text-muted flex-shrink-0" />
-                    )}
+                    <span className="text-[10px] text-cs-text-muted shrink-0">{doc.processing_status === "complete" ? "Text ready" : doc.processing_status === "failed" ? "Needs review" : "Uploaded"}</span>
                     <button
                       onClick={() => handleDeleteDocument(active.id, doc.id)}
-                      className="opacity-0 group-hover:opacity-100 text-cs-text-muted hover:text-cs-accent-red p-1 rounded transition flex-shrink-0"
+                      className="opacity-70 hover:opacity-100 text-cs-text-muted hover:text-cs-accent-red p-1 rounded transition flex-shrink-0"
                       title="Delete file"
                     >
                       <Trash2 size={12} />
@@ -604,41 +603,10 @@ export default function WorkspacePage() {
               <p className="text-xs text-cs-text-muted text-center py-4">No documents yet. Upload files to get started.</p>
             )}
 
-            {/* Event Calendar — FlippingBook embed */}
-            {active.name === "Event Calendar" && (
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar size={14} className="text-cs-accent-blue" />
-                  <h4 className="text-xs font-medium text-cs-text-primary">Event Calendar</h4>
-                  <span className="text-[10px] text-cs-text-muted bg-cs-card px-1.5 py-0.5 rounded-full border border-cs-border">Interactive</span>
-                </div>
-                <div className="rounded-xl overflow-hidden border border-cs-border bg-cs-card">
-                  <iframe
-                    src="https://online.flippingbook.com/view/1012294416/"
-                    title="Property Event Calendar"
-                    className="w-full"
-                    style={{ height: "520px", border: "none" }}
-                    allowFullScreen
-                  />
-                </div>
-                <div className="flex items-center justify-between mt-2 px-1">
-                  <p className="text-[10px] text-cs-text-muted">Interactive digital event calendar — powered by FlippingBook</p>
-                  <a
-                    href="https://online.flippingbook.com/view/1012294416/"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-[10px] text-cs-accent-blue hover:underline"
-                  >
-                    <ExternalLink size={10} /> Open full view
-                  </a>
-                </div>
-              </div>
-            )}
-
             {/* Links section */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Globe size={14} className="text-cs-accent-blue" />
+                <Globe size={14} className="text-cs-accent-brand" />
                 <h4 className="text-xs font-medium text-cs-text-primary">Links</h4>
                 {(spaceLinks[active.id] || []).length > 0 && (
                   <span className="text-[10px] text-cs-text-muted">
@@ -658,9 +626,9 @@ export default function WorkspacePage() {
                         <p className="text-xs text-cs-text-primary font-medium truncate">{link.title}</p>
                         <p className="text-[10px] text-cs-text-muted truncate">{link.url}</p>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                      <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition">
                         <a href={link.url} target="_blank" rel="noreferrer"
-                          className="text-cs-text-muted hover:text-cs-accent-blue p-1 rounded">
+                          className="text-cs-text-muted hover:text-cs-accent-brand p-1 rounded">
                           <ExternalLink size={12} />
                         </a>
                         <button
@@ -718,7 +686,7 @@ export default function WorkspacePage() {
               {!showAddLink && (
                 <button
                   onClick={() => setShowAddLink(true)}
-                  className="flex items-center gap-1.5 text-xs text-cs-text-muted hover:text-cs-accent-blue transition w-full py-1.5 border border-dashed border-cs-border rounded-md justify-center hover:border-cs-accent-blue/50"
+                  className="flex items-center gap-1.5 text-xs text-cs-text-muted hover:text-cs-accent-brand transition w-full py-1.5 border border-dashed border-cs-border rounded-md justify-center hover:border-cs-accent-brand/50"
                 >
                   <Plus size={12} /> Add link
                 </button>

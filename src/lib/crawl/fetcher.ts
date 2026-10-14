@@ -63,9 +63,9 @@ export async function fetchPage(url: string): Promise<FetchResult> {
       redirect: "follow",
     });
 
-    clearTimeout(timeout);
-
+    if (!res.ok) throw new Error(`Website returned HTTP ${res.status}`);
     const html = await res.text();
+    clearTimeout(timeout);
     const $ = cheerio.load(html);
 
     // Remove scripts, styles, nav, footer noise

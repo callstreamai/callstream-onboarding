@@ -30,7 +30,7 @@ export function normalizeVoices(data: unknown): PreviewVoice[] {
     if (!v || !isVoiceId(v.id) || !["BTTS_V3", "BTTS_V2"].includes(v.service) || seen.has(v.id)) return [];
     seen.add(v.id);
     const tags = Array.isArray(v.tags) ? v.tags.filter((t: unknown): t is string => typeof t === "string") : [];
-    return [{ id: v.id, name: typeof v.name === "string" ? v.name : "Untitled voice", description: typeof v.description === "string" ? v.description : "", service: v.service, tags, recommended: tags.some((t: string) => t.toLowerCase() === "bland curated") }];
+    return [{ id: v.id, name: typeof v.name === "string" ? v.name.replace(/bland/gi,"Call Stream") : "Untitled voice", description: typeof v.description === "string" ? v.description.replace(/bland/gi,"Call Stream") : "", service: "Voice", tags: tags.map((t:string)=>t.replace(/bland/gi,"Call Stream")), recommended: tags.some((t: string) => t.toLowerCase() === "bland curated") }];
   }).sort((a, b) => Number(b.recommended) - Number(a.recommended) || a.name.localeCompare(b.name));
 }
 

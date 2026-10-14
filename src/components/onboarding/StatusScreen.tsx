@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {useAuth} from "@/components/providers/AuthProvider";
 import Link from "next/link";
 import type { OnboardingJob } from "@/types";
 import { Spinner } from "@/components/ui/Spinner";
@@ -46,6 +47,7 @@ interface WorkspaceSummary {
 }
 
 export function StatusScreen({ jobId }: Props) {
+  const {isAdmin}=useAuth();
   const [job, setJob] = useState<OnboardingJob | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [recentComments, setRecentComments] = useState<RecentComment[]>([]);
@@ -55,7 +57,7 @@ export function StatusScreen({ jobId }: Props) {
 
   useEffect(() => {
     loadAll();
-  }, [jobId]);
+  }, [jobId,isAdmin]);
 
   async function loadAll() {
     try {
@@ -64,7 +66,7 @@ export function StatusScreen({ jobId }: Props) {
         fetch(`/api/jobs/${jobId}/project`),
         fetch(`/api/jobs/${jobId}/comments`),
         fetch(`/api/jobs/${jobId}/spaces`),
-        fetch(`/api/jobs/${jobId}/extraction`),
+        isAdmin?fetch(`/api/jobs/${jobId}/extraction`):Promise.resolve(new Response(null,{status:403})),
       ]);
 
       if (jobRes.ok) {
@@ -130,7 +132,7 @@ export function StatusScreen({ jobId }: Props) {
     milestones.find((m) => m.status === "pending");
 
   // Status pill
-  const statusLabel = job.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const statusLabel = isAdmin ? job.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : job.status === "approved" ? "Ready" : "In preparation";
   const isActive = !["approved", "rejected", "error"].includes(job.status);
 
   return (
@@ -148,7 +150,7 @@ export function StatusScreen({ jobId }: Props) {
                 href={job.property_url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-cs-text-muted hover:text-cs-accent-blue mt-1 transition"
+                className="inline-flex items-center gap-1 text-xs text-cs-text-muted hover:text-cs-accent-brand mt-1 transition"
               >
                 <Globe size={11} />
                 {job.property_url}
@@ -162,9 +164,9 @@ export function StatusScreen({ jobId }: Props) {
               ? "bg-cs-accent-green/10 text-cs-accent-green"
               : job.status === "error" || job.status === "rejected"
               ? "bg-cs-accent-red/10 text-cs-accent-red"
-              : "bg-cs-accent-blue/10 text-cs-accent-blue")
+              : "bg-cs-accent-brand/10 text-cs-accent-brand")
           }>
-            <span className={"w-1.5 h-1.5 rounded-full " + (isActive ? "bg-cs-accent-blue animate-pulse" : "bg-cs-accent-green")} />
+            <span className={"w-1.5 h-1.5 rounded-full " + (isActive ? "bg-cs-accent-brand animate-pulse" : "bg-cs-accent-green")} />
             {statusLabel}
           </div>
         </div>
@@ -177,7 +179,7 @@ export function StatusScreen({ jobId }: Props) {
           </div>
           <div className="w-full h-2 bg-cs-border rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-cs-accent-blue to-cs-accent-green rounded-full transition-all duration-700"
+              className="h-full bg-gradient-to-r from-cs-accent-brand to-cs-accent-green rounded-full transition-all duration-700"
               style={{ width: pct + "%" }}
             />
           </div>
@@ -191,47 +193,18 @@ export function StatusScreen({ jobId }: Props) {
       {/* 3-column summary grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-        {/* Extraction card */}
-        <Link
-          href={`/onboarding/${jobId}/extraction`}
-          className="cs-card p-5 hover:border-cs-accent-blue/40 transition group"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-8 h-8 rounded-lg bg-cs-accent-blue/10 flex items-center justify-center">
-              <FileJson size={16} className="text-cs-accent-blue" />
-            </div>
-            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition" />
-          </div>
-          <h3 className="text-sm font-medium text-cs-text-primary mb-1">Extraction</h3>
-          <p className="text-xs text-cs-text-muted">
-            {extractionMeta?.job_marked_complete && !extractionMeta?.has_extraction_rows
-              ? "Complete status, but structured rows are missing"
-              : job.extraction_status === "complete"
-              ? "View and download JSON or Markdown"
-              : "Extraction output will appear here"}
-          </p>
-          {extractionMeta?.job_marked_complete && !extractionMeta?.has_extraction_rows && (
-            <p className="text-[11px] text-cs-accent-orange mt-2">
-              Source manifest available →
-            </p>
-          )}
-          {job.extraction_confidence !== null && job.extraction_confidence !== undefined && (
-            <p className="text-[11px] text-cs-accent-green mt-2">
-              {Math.round(Number(job.extraction_confidence) * 100)}% confidence
-            </p>
-          )}
-        </Link>
+        {isAdmin && <Link href={`/onboarding/${jobId}/knowledge`} className="cs-card p-5 hover:border-cs-accent-brand/50 transition"><FileJson size={20} className="text-cs-accent-brand mb-4"/><h3 className="text-sm font-medium">Knowledge</h3><p className="text-xs text-cs-text-muted mt-2">Prepare, review, and publish your property Q&A versions.</p></Link>}
 
         {/* Workspace card */}
         <Link
           href={`/onboarding/${jobId}/workspace`}
-          className="cs-card p-5 hover:border-cs-accent-blue/40 transition group"
+          className="cs-card p-5 hover:border-cs-accent-brand/40 transition group"
         >
           <div className="flex items-center justify-between mb-3">
             <div className="w-8 h-8 rounded-lg bg-cs-accent-purple/10 flex items-center justify-center">
               <FolderOpen size={16} className="text-cs-accent-purple" />
             </div>
-            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition" />
+            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-brand transition" />
           </div>
           <h3 className="text-sm font-medium text-cs-text-primary mb-1">Workspace</h3>
           <p className="text-xs text-cs-text-muted">
@@ -240,7 +213,7 @@ export function StatusScreen({ jobId }: Props) {
               : "Upload documents, links & media"}
           </p>
           {workspace.documents === 0 && (
-            <p className="text-[11px] text-cs-accent-blue mt-2">
+            <p className="text-[11px] text-cs-accent-brand mt-2">
               Add files to get started →
             </p>
           )}
@@ -249,13 +222,13 @@ export function StatusScreen({ jobId }: Props) {
         {/* Project / Timeline card */}
         <Link
           href={`/onboarding/${jobId}/project`}
-          className="cs-card p-5 hover:border-cs-accent-blue/40 transition group"
+          className="cs-card p-5 hover:border-cs-accent-brand/40 transition group"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="w-8 h-8 rounded-lg bg-cs-accent-blue/10 flex items-center justify-center">
-              <Kanban size={16} className="text-cs-accent-blue" />
+            <div className="w-8 h-8 rounded-lg bg-cs-accent-brand/10 flex items-center justify-center">
+              <Kanban size={16} className="text-cs-accent-brand" />
             </div>
-            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition" />
+            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-brand transition" />
           </div>
           <h3 className="text-sm font-medium text-cs-text-primary mb-1">Project</h3>
           {nextMilestone ? (
@@ -271,13 +244,13 @@ export function StatusScreen({ jobId }: Props) {
         {/* Voice Preview card */}
         <Link
           href={`/onboarding/${jobId}/voice-preview`}
-          className="cs-card p-5 hover:border-cs-accent-blue/40 transition group"
+          className="cs-card p-5 hover:border-cs-accent-brand/40 transition group"
         >
           <div className="flex items-center justify-between mb-3">
             <div className="w-8 h-8 rounded-lg bg-cs-accent-green/10 flex items-center justify-center">
               <Mic2 size={16} className="text-cs-accent-green" />
             </div>
-            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-blue transition" />
+            <ArrowRight size={14} className="text-cs-text-muted group-hover:text-cs-accent-brand transition" />
           </div>
           <h3 className="text-sm font-medium text-cs-text-primary mb-1">Voice Preview</h3>
           <p className="text-xs text-cs-text-muted">Hear how your AI voice sounds</p>
@@ -293,7 +266,7 @@ export function StatusScreen({ jobId }: Props) {
             <h3 className="text-xs font-medium text-cs-text-muted uppercase tracking-wide">Milestones</h3>
             <Link
               href={`/onboarding/${jobId}/project`}
-              className="text-[11px] text-cs-accent-blue hover:underline"
+              className="text-[11px] text-cs-accent-brand hover:underline"
             >
               View all
             </Link>
@@ -310,7 +283,7 @@ export function StatusScreen({ jobId }: Props) {
                   : Circle;
                 const color =
                   m.status === "complete" ? "text-cs-accent-green"
-                  : m.status === "in_progress" ? "text-cs-accent-blue"
+                  : m.status === "in_progress" ? "text-cs-accent-brand"
                   : "text-cs-border";
                 return (
                   <div key={m.id} className="flex items-center gap-2.5">
@@ -326,7 +299,7 @@ export function StatusScreen({ jobId }: Props) {
                       {m.name}
                     </span>
                     {m.status === "in_progress" && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cs-accent-blue/10 text-cs-accent-blue font-medium">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cs-accent-brand/10 text-cs-accent-brand font-medium">
                         ACTIVE
                       </span>
                     )}
@@ -348,7 +321,7 @@ export function StatusScreen({ jobId }: Props) {
             <h3 className="text-xs font-medium text-cs-text-muted uppercase tracking-wide">Recent Comments</h3>
             <Link
               href={`/onboarding/${jobId}/project`}
-              className="text-[11px] text-cs-accent-blue hover:underline"
+              className="text-[11px] text-cs-accent-brand hover:underline"
             >
               View all
             </Link>
@@ -360,7 +333,7 @@ export function StatusScreen({ jobId }: Props) {
               <p className="text-xs text-cs-text-muted">No comments yet</p>
               <Link
                 href={`/onboarding/${jobId}/project`}
-                className="text-[11px] text-cs-accent-blue hover:underline mt-1 inline-block"
+                className="text-[11px] text-cs-accent-brand hover:underline mt-1 inline-block"
               >
                 Start a conversation →
               </Link>
@@ -372,7 +345,7 @@ export function StatusScreen({ jobId }: Props) {
                 const initial = name[0].toUpperCase();
                 return (
                   <div key={c.id} className="flex items-start gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-cs-accent-blue/20 flex items-center justify-center text-[10px] text-cs-accent-blue font-semibold flex-shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-cs-accent-brand/20 flex items-center justify-center text-[10px] text-cs-accent-brand font-semibold flex-shrink-0">
                       {initial}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -383,7 +356,7 @@ export function StatusScreen({ jobId }: Props) {
                       <p className="text-xs text-cs-text-secondary line-clamp-2">
                         {c.body.split(/(@\S+)/g).map((part, i) =>
                           part.startsWith("@") ? (
-                            <span key={i} className="text-cs-accent-blue">{part}</span>
+                            <span key={i} className="text-cs-accent-brand">{part}</span>
                           ) : part
                         )}
                       </p>

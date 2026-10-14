@@ -1,3 +1,4 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 
 const SB_URL = () => process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -18,6 +19,8 @@ async function fetchJson(path: string) {
 }
 
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const [milestones, tasks, rawComments] = await Promise.all([
       fetchJson("/rest/v1/project_milestones?job_id=eq." + params.jobId + "&select=*&order=sort_order"),

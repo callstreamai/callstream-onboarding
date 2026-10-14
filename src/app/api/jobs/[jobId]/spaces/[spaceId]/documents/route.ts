@@ -1,7 +1,10 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest, { params }: { params: { jobId: string; spaceId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const { data, error } = await supabase
@@ -17,34 +20,14 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { jobId: string; spaceId: string } }) {
-  try {
-    const supabase = createServiceClient();
-    const body = await req.json();
-
-    const { data, error } = await supabase
-      .from("space_documents")
-      .insert({
-        space_id: params.spaceId,
-        job_id: params.jobId,
-        name: body.name,
-        description: body.description || null,
-        file_name: body.fileName,
-        file_type: body.fileType,
-        file_size: body.fileSize,
-        storage_path: body.storagePath,
-        uploaded_by: body.userId || null,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return NextResponse.json({ document: data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
+export async function POST(req: NextRequest, {params}:{params:{jobId:string;spaceId:string}}) {
+ const denied=await guardProject(params.jobId);if(denied)return denied;
+ return NextResponse.json({error:"Use the file upload endpoint to add documents."},{status:410});
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { jobId: string; spaceId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const documentId = req.nextUrl.searchParams.get("id");
     if (!documentId) {

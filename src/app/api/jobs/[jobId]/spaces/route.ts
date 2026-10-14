@@ -1,30 +1,10 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
-const DEFAULT_SPACES = [
-  { name: "Front Desk", description: "Check-in/out procedures, guest services, phone scripts", icon: "building" },
-  { name: "Housekeeping", description: "Room cleaning SOPs, turnover procedures, supplies", icon: "home" },
-  { name: "Food & Beverage", description: "Restaurant menus, bar programs, room service", icon: "utensils" },
-  { name: "Reservations", description: "Booking policies, rate structures, packages", icon: "calendar" },
-  { name: "Facilities", description: "Amenities, maintenance, property maps", icon: "settings" },
-  { name: "Policies", description: "Pet, parking, cancellation, noise policies", icon: "file-text" },
-  { name: "Training", description: "Staff training manuals, onboarding guides", icon: "book" },
-  { name: "Marketing", description: "Brochures, promotions, brand guidelines", icon: "megaphone" },
-  { name: "Event Calendar", description: "Property events, community activities, scheduled programming", icon: "calendar" },
-];
-
-// Default links to seed per space name
-const DEFAULT_SPACE_LINKS: Record<string, { title: string; url: string; description?: string }[]> = {
-  "Event Calendar": [
-    {
-      title: "Property Event Calendar",
-      url: "https://online.flippingbook.com/view/1012294416/",
-      description: "Interactive digital event calendar — view upcoming property events and activities",
-    },
-  ],
-};
-
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const { data, error } = await supabase
@@ -41,39 +21,18 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
 }
 
 export async function POST(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const body = await req.json();
 
     if (body.initDefaults) {
-      const rows = DEFAULT_SPACES.map((s, i) => ({
-        job_id: params.jobId,
-        name: s.name,
-        description: s.description,
-        icon: s.icon,
-        sort_order: i,
-        created_by: body.userId || null,
-      }));
-      const { data, error } = await supabase.from("spaces").insert(rows).select();
+      const { requireUser } = await import("@/lib/access");
+      const { user } = await requireUser();
+      const { error } = await supabase.rpc("initialize_property_folders", { p_job: params.jobId, p_actor: user.id });
       if (error) throw error;
-
-      // Seed default links for spaces that have them
-      const spaces = data || [];
-      for (const space of spaces) {
-        const defaultLinks = DEFAULT_SPACE_LINKS[space.name];
-        if (defaultLinks && defaultLinks.length > 0) {
-          const linkRows = defaultLinks.map((link) => ({
-            space_id: space.id,
-            job_id: params.jobId,
-            title: link.title,
-            url: link.url,
-            description: link.description || null,
-            added_by: body.userId || null,
-          }));
-          await supabase.from("space_links").insert(linkRows);
-        }
-      }
-
+      const { data: spaces } = await supabase.from("spaces").select("*, space_documents(id,name,file_name,file_type,file_size,processing_status,created_at)").eq("job_id",params.jobId).order("sort_order");
       return NextResponse.json({ spaces });
     }
 
@@ -97,6 +56,8 @@ export async function POST(req: NextRequest, { params }: { params: { jobId: stri
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const { spaceId, icon, name, description } = await req.json();
@@ -123,6 +84,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { jobId: str
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
     const spaceId = req.nextUrl.searchParams.get("spaceId");

@@ -1,3 +1,4 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -12,8 +13,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { jobId: string; spaceId: string } }
 ) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
+    const {data:folder}=await supabase.from("spaces").select("id").eq("id",params.spaceId).eq("job_id",params.jobId).maybeSingle();
+    if(!folder)return NextResponse.json({error:"Folder not found"},{status:404});
     const { data, error } = await supabase
       .from("space_links")
       .select("*")
@@ -31,11 +36,15 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { jobId: string; spaceId: string } }
 ) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
+    const {data:folder}=await supabase.from("spaces").select("id").eq("id",params.spaceId).eq("job_id",params.jobId).maybeSingle();
+    if(!folder)return NextResponse.json({error:"Folder not found"},{status:404});
     const { title, url, description, userId } = await req.json();
 
-    if (!title?.trim() || !url?.trim()) {
+    if (!title?.trim() || !/^https?:\/\//i.test(url || "")) {
       return NextResponse.json({ error: "title and url required" }, { status: 400 });
     }
 
@@ -63,8 +72,12 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { jobId: string; spaceId: string } }
 ) {
+  const denied = await guardProject(params.jobId, false);
+  if (denied) return denied;
   try {
     const supabase = createServiceClient();
+    const {data:folder}=await supabase.from("spaces").select("id").eq("id",params.spaceId).eq("job_id",params.jobId).maybeSingle();
+    if(!folder)return NextResponse.json({error:"Folder not found"},{status:404});
     const { searchParams } = new URL(req.url);
     const linkId = searchParams.get("id");
 

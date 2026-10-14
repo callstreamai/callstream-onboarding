@@ -1,3 +1,4 @@
+import { guardProject } from "@/lib/access";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -151,6 +152,8 @@ function safeFileName(name: string) {
 }
 
 export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+  const denied = await guardProject(params.jobId, true);
+  if (denied) return denied;
   try {
     const format = req.nextUrl.searchParams.get("format") || "json";
     const download = req.nextUrl.searchParams.get("download") === "true";

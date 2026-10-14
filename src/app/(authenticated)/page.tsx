@@ -37,7 +37,7 @@ interface WordItem {
 const STATUS_COLORS: Record<string, string> = {
   extraction_complete: "bg-cs-accent-purple/10 text-cs-accent-purple",
   approved:            "bg-cs-accent-green/10 text-cs-accent-green",
-  review_in_progress:  "bg-cs-accent-blue/10 text-cs-accent-blue",
+  review_in_progress:  "bg-cs-accent-brand/10 text-cs-accent-brand",
   review_pending:      "bg-cs-accent-orange/10 text-cs-accent-orange",
 };
 
@@ -64,7 +64,7 @@ function WordCloud({ words }: { words: WordItem[] }) {
   const maxWeight = Math.max(...words.map((w) => w.weight));
   const sizes = ["text-[10px]", "text-xs", "text-sm", "text-base", "text-lg", "text-xl"];
   const colors = [
-    "text-cs-accent-blue", "text-cs-accent-purple", "text-cs-accent-green",
+    "text-cs-accent-brand", "text-cs-accent-purple", "text-cs-accent-green",
     "text-cs-accent-orange", "text-cs-text-secondary",
   ];
 
@@ -115,17 +115,7 @@ export default function DashboardPage() {
           const fetchedJobs: Job[] = data.jobs || [];
           setJobs(fetchedJobs);
 
-          // Fetch word cloud data
-          if (fetchedJobs.length > 0) {
-            const jobIds = fetchedJobs.map((j) => j.id).join(",");
-            fetch("/api/dashboard/wordcloud?jobIds=" + jobIds)
-              .then((r) => r.json())
-              .then((wc) => {
-                if (wc.words) setWordItems(wc.words);
-                if (wc.linkCounts) setLinkCounts(wc.linkCounts);
-              })
-              .catch(() => {});
-          }
+
         })
         .finally(() => setLoading(false));
     }
@@ -158,7 +148,7 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {jobs.map((job) => {
                 const statusClass = STATUS_COLORS[job.status] || "bg-cs-card text-cs-text-muted";
-                const statusLabel = STATUS_LABELS[job.status] || job.status.replace(/_/g, " ");
+                const statusLabel = job.status === "approved" ? "Ready" : "In preparation";
                 const links = linkCounts[job.id] || 0;
                 const confidence = computeConfidence(job.pages_crawled || 0, job.files_processed || 0, links);
                 return (
@@ -167,52 +157,18 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between mb-5">
                       <div>
                         <div className="flex items-center gap-3 mb-1">
-                          <Building2 size={18} className="text-cs-accent-blue" />
+                          <Building2 size={18} className="text-cs-accent-brand" />
                           <h2 className="text-lg font-semibold text-cs-text-primary">{displayName(job)}</h2>
                         </div>
                         <a href={job.property_url} target="_blank" rel="noreferrer"
-                          className="text-xs text-cs-text-muted hover:text-cs-accent-blue transition flex items-center gap-1">
+                          className="text-xs text-cs-text-muted hover:text-cs-accent-brand transition flex items-center gap-1">
                           <Globe size={11} />{job.property_url}
                         </a>
                       </div>
                       <span className={"cs-badge " + statusClass}>{statusLabel}</span>
                     </div>
 
-                    {/* Progress stats */}
-                    <div className="grid grid-cols-4 gap-3 mb-5">
-                      <div className="cs-card p-3 text-center">
-                        <p className="text-xl font-semibold text-cs-text-primary">{job.pages_crawled || 0}</p>
-                        <p className="text-[10px] text-cs-text-muted mt-0.5">Pages Crawled</p>
-                      </div>
-                      <div className="cs-card p-3 text-center">
-                        <p className="text-xl font-semibold text-cs-text-primary">{job.files_processed || 0}</p>
-                        <p className="text-[10px] text-cs-text-muted mt-0.5">Files Processed</p>
-                      </div>
-                      <div className="cs-card p-3 text-center">
-                        <p className="text-xl font-semibold text-cs-text-primary">{links}</p>
-                        <p className="text-[10px] text-cs-text-muted mt-0.5">Links Added</p>
-                      </div>
-                      <div className="cs-card p-3 text-center">
-                        <p className="text-xl font-semibold text-cs-accent-purple">
-                          {Math.round(confidence * 100)}%
-                        </p>
-                        <p className="text-[10px] text-cs-text-muted mt-0.5">AI Confidence</p>
-                      </div>
-                    </div>
-
-                    {/* AI confidence bar */}
-                    <div className="mb-5">
-                      <div className="flex items-center justify-between text-[10px] text-cs-text-muted mb-1">
-                        <span>Setup completeness</span>
-                        <span>{Math.round(confidence * 100)}% — {confidence < 0.3 ? "Add more data to improve" : confidence < 0.7 ? "Good progress" : "Ready for review"}</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-cs-border rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-cs-accent-blue to-cs-accent-purple rounded-full transition-all"
-                          style={{ width: Math.round(confidence * 100) + "%" }}
-                        />
-                      </div>
-                    </div>
+                    <p className="text-sm text-cs-text-secondary mb-5">Add your property files and submit them for review. Your Call Stream team handles preparation.</p>
 
                     {/* Action buttons */}
                     <div className="flex flex-wrap items-center gap-3">
@@ -243,7 +199,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Word Cloud */}
-            <WordCloud words={wordItems} />
+
           </>
         )}
       </div>

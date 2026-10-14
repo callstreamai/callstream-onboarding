@@ -22,7 +22,7 @@ test('voice catalog uses the public voice ID, includes compatible engines, dedup
     { id: 'bad-id', service: 'BTTS_V3' },
     { id: 'a4610ec1-933d-44c9-a05f-53df2437808d', service: 'LEGACY' },
   ] });
-  assert.equal(voices.length, 2); assert.equal(voices[0].id, id); assert.equal(voices[0].recommended, true); assert.equal(voices[1].name, 'Karen');
+  assert.doesNotMatch(JSON.stringify(voices), /bland/i); assert.equal(voices.length, 2); assert.equal(voices[0].id, id); assert.equal(voices[0].recommended, true); assert.equal(voices[1].name, 'Karen');
 });
 test('malformed catalog fails instead of silently showing an empty library', () => assert.throws(() => lib.normalizeVoices({ error: 'unavailable' })));
 test('preview validation rejects empty, oversized, malformed requests and named voices', () => {
