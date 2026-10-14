@@ -1,51 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server-client";
+import { generatePreview, PreviewError, validatePreview } from "@/lib/voice-preview";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export async function POST(req: NextRequest) {
-  const { text, voice } = await req.json();
-
-  if (!text) {
-    return NextResponse.json({ error: "text required" }, { status: 400 });
-  }
-
-  const apiKey = process.env.BLAND_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "BLAND_API_KEY not configured" }, { status: 503 });
-  }
-
-  // Bland API uses "voice_id" for UUID-format voices (V3 clones / Experimental)
-  // and "voice" for short-slug Beige voices
-  const isUUID = UUID_RE.test(voice || "");
-  const payload = isUUID
-    ? { text, voice_id: voice }
-    : { text, voice: voice || "karl" };
-
+export async function POST(req: Request) {
   try {
-    const res = await fetch("https://api.bland.ai/v1/speak", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: apiKey,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return NextResponse.json({ error: err }, { status: res.status });
-    }
-
-    const audioBuffer = await res.arrayBuffer();
-    const contentType = res.headers.get("content-type") || "audio/wav";
-
-    return new NextResponse(audioBuffer, {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "no-store",
-      },
-    });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { data: { user }, error } = await createServerSupabaseClient().auth.getUser();
+    if (error || !user) return NextResponse.json({ error: "Your session has expired. Please sign in again." }, { status: 401 });
+    let body: unknown;
+    try { body = await req.json(); } catch { throw new PreviewError("Please enter a valid preview request.", 400); }
+    const input = validatePreview(body);
+    const apiKey = process.env.BLAND_API_KEY;
+    if (!apiKey) throw new PreviewError("Voice previews are not configured. Please contact your administrator.", 503);
+    const audio = await generatePreview(apiKey, input);
+    return new Response(audio, { headers: { "Content-Type": "audio/wav", "Cache-Control": "no-store" } });
+  } catch (error) {
+    const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+    const message = error instanceof PreviewError ? error.message : timeout ? "The preview took too long. Please try again or choose another voice." : "We could not connect to the voice service. Please try again.";
+    const status = error instanceof PreviewError ? error.status : timeout ? 504 : 502;
+    console.error("Voice preview failed", { status, type: error instanceof Error ? error.name : "Unknown" });
+    return NextResponse.json({ error: message }, { status });
   }
 }

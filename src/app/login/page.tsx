@@ -66,8 +66,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cs-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen bg-cs-bg bg-[radial-gradient(ellipse_at_top,rgba(232,121,198,0.12),transparent_60%)] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
           <img
             src="/logo.png"
@@ -75,25 +75,27 @@ export default function LoginPage() {
             className="h-10 w-auto object-contain"
           />
           <p className="text-[10px] text-cs-text-muted uppercase tracking-widest mt-2">
-            ONBOARDING PLATFORM
+            YOUR CALL STREAM LAUNCH WORKSPACE
           </p>
         </div>
 
-        <div className="cs-card p-6">
+        <div className="cs-card p-8 shadow-2xl">
           <h2 className="text-lg font-semibold text-cs-text-primary mb-1">
-            {codeSent ? "Enter your Magic Code" : "Sign in with Magic Code"}
+            {codeSent ? "Enter your Magic Code" : "Welcome to your next chapter."}
           </h2>
           <p className="text-sm text-cs-text-secondary mb-6">
             {codeSent
-              ? "We sent the Magic Code we emailed you. Enter it below."
-              : "Enter the email your administrator enrolled for access."}
+              ? "Enter the sign-in code we sent to your email."
+              : "Bring your property, knowledge, and voice together. Sign in with your invited email to get started."}
           </p>
 
           {!codeSent ? (
             <form onSubmit={handleSendCode} className="space-y-4">
               <div>
-                <label className="cs-label block mb-1.5">EMAIL</label>
+                <label htmlFor="login-email" className="cs-label block mb-1.5">EMAIL</label>
                 <input
+                  id="login-email"
+                  autoComplete="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -119,8 +121,9 @@ export default function LoginPage() {
           ) : (
             <form onSubmit={handleVerifyCode} className="space-y-4">
               <div>
-                <label className="cs-label block mb-1.5">MAGIC CODE</label>
+                <label htmlFor="login-code" className="cs-label block mb-1.5">MAGIC CODE</label>
                 <input
+                  id="login-code"
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"

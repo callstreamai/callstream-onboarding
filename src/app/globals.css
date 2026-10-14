@@ -19,7 +19,7 @@
   }
 
   ::selection {
-    background-color: rgba(96, 165, 250, 0.3);
+    background-color: rgba(232, 121, 198, 0.3);
     color: #ffffff;
   }
 
@@ -45,7 +45,7 @@
 
 @layer components {
   .cs-card {
-    @apply bg-cs-card border border-cs-border rounded-lg;
+    @apply bg-cs-card border border-cs-border rounded-2xl;
   }
 
   .cs-card-hover {
@@ -59,7 +59,7 @@
   .cs-input {
     @apply w-full bg-cs-surface border border-cs-border rounded-md px-3 py-2.5
            text-sm text-cs-text-primary placeholder-cs-text-muted
-           focus:outline-none focus:border-cs-border-hover
+           focus:outline-none focus:border-cs-accent-brand
            transition-colors;
   }
 
@@ -71,8 +71,8 @@
 
   .cs-btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
-           bg-white text-black text-sm font-medium rounded-md
-           hover:bg-gray-200 transition-colors disabled:opacity-40
+           bg-cs-accent-brand text-black text-sm font-medium rounded-md
+           hover:bg-pink-300 transition-colors disabled:opacity-40
            disabled:cursor-not-allowed;
   }
 
@@ -97,11 +97,19 @@
 
   .cs-sidebar-item-active {
     @apply flex items-center gap-3 px-3 py-2 text-sm text-cs-text-primary
-           bg-cs-card rounded-md font-medium;
+           bg-cs-accent-brand/10 text-cs-accent-brand rounded-lg font-medium;
   }
 
   .cs-badge {
     @apply inline-flex items-center px-2 py-0.5 text-[11px] font-medium
            rounded-full uppercase tracking-wide;
+  }
+}
+
+@layer base {
+  :focus-visible { outline: 2px solid #e879c6; outline-offset: 3px; }
+  select, audio { color-scheme: dark; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
 }
