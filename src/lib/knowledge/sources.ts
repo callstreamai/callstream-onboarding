@@ -1,3 +1,4 @@
+import { isBlockedSource } from "./source-quality";
 import type { createServiceClient } from "@/lib/supabase/server";
 import { processFile } from "@/lib/ingest/file-processor";
 import { fingerprint } from "@/lib/property-operations";
@@ -60,7 +61,7 @@ export async function readKnowledgeSources(
   inventory: Awaited<ReturnType<typeof sourceInventory>>,
 ) {
   const sources: KnowledgeSource[] = inventory.pages
-    .filter((p) => p.status === "fetched" && p.content_text?.trim())
+    .filter((p) => p.status === "fetched" && p.content_text?.trim() && !isBlockedSource(p.title||"",p.content_text||""))
     .map((p) => ({
       id: p.id,
       name: p.title || p.url,
@@ -68,7 +69,7 @@ export async function readKnowledgeSources(
       content: p.content_text,
     }));
   const warnings: string[] = inventory.pages
-    .filter((p) => p.status !== "fetched")
+    .filter((p) => p.status !== "fetched" || isBlockedSource(p.title||"",p.content_text||""))
     .map((p) => `${p.url}: this website page could not be read.`);
   for (const doc of inventory.documents) {
     let text = doc.extracted_text || "";

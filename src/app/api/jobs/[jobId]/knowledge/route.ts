@@ -99,7 +99,7 @@ export async function POST(
         );
         if (!sources.length)
           throw new AccessError(
-            "No readable sources are available. Scrape the website or upload searchable documents.",
+            "No readable property sources are available. The website may be blocking access. Upload searchable property documents or retry the scrape.",
             422,
           );
         const chunks = splitSources(sources);
