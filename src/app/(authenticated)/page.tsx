@@ -203,8 +203,8 @@ export default function DashboardPage() {
                     {/* AI confidence bar */}
                     <div className="mb-5">
                       <div className="flex items-center justify-between text-[10px] text-cs-text-muted mb-1">
-                        <span>AI Readiness</span>
-                        <span>{Math.round(confidence * 100)}% — {confidence < 0.3 ? "Add more data to improve" : confidence < 0.7 ? "Good progress" : "Ready to train"}</span>
+                        <span>Setup completeness</span>
+                        <span>{Math.round(confidence * 100)}% — {confidence < 0.3 ? "Add more data to improve" : confidence < 0.7 ? "Good progress" : "Ready for review"}</span>
                       </div>
                       <div className="w-full h-1.5 bg-cs-border rounded-full overflow-hidden">
                         <div
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <Link href={"/onboarding/" + job.id + "/status"}
                         className="cs-btn-primary text-sm flex-1 justify-center">
                         <Activity size={14} />
@@ -253,7 +253,8 @@ export default function DashboardPage() {
   // ── ADMIN VIEW ──
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">Dashboard</h1>
+      <p className="cs-label text-cs-accent-brand mb-2">CALL STREAM AI / LAUNCH</p>
+      <h1 className="text-3xl font-semibold tracking-tight mb-2">Your launch workspace</h1>
       <p className="text-sm text-cs-text-secondary mb-6">
         Welcome back{profile?.full_name ? ", " + profile.full_name : ""}
       </p>
@@ -272,17 +273,18 @@ export default function DashboardPage() {
             <StatCard label="Pages Crawled" value={adminStats.pagesCrawled} />
             <StatCard label="Files Processed" value={adminStats.filesProcessed} />
             <StatCard label="Fields Extracted" value={adminStats.fieldsExtracted} color="purple" />
-            <StatCard label="Avg Confidence" value={Math.round(adminStats.avgConfidence * 100) + "%"} color="purple" />
+            <StatCard label="Avg Confidence" value={Math.round(adminStats.avgConfidence) + "%"} color="purple" />
           </div>
           <div className="cs-card p-5">
             <p className="text-sm font-medium mb-4">Quick Actions</p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Link href="/onboarding" className="cs-btn-secondary text-sm">
-                <FileInput size={16} />New Onboarding
+                <FileInput size={16} />Start onboarding
               </Link>
               <Link href="/submissions" className="cs-btn-secondary text-sm">
-                <FolderOpen size={16} />View Submissions
+                <FolderOpen size={16} />View projects
               </Link>
+              <Link href="/voice-preview" className="cs-btn-primary text-sm"><Mic2 size={16} />Explore Voice Studio</Link>
             </div>
           </div>
         </>

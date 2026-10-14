@@ -19,7 +19,7 @@ export default function JobTabs({ jobId, propertyName }: Props) {
     { label: "Extraction",    href: "/onboarding/" + jobId + "/extraction",    icon: FileJson,  adminOnly: false },
     { label: "Workspace",     href: "/onboarding/" + jobId + "/workspace",     icon: FolderOpen, adminOnly: false },
     { label: "Project",       href: "/onboarding/" + jobId + "/project",       icon: Kanban,    adminOnly: false },
-    { label: "Voice Preview", href: "/onboarding/" + jobId + "/voice-preview", icon: Mic2,      adminOnly: false },
+    { label: "Voice Studio", href: "/onboarding/" + jobId + "/voice-preview", icon: Mic2,      adminOnly: false },
   ];
 
   return (
@@ -42,7 +42,7 @@ export default function JobTabs({ jobId, propertyName }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-cs-border">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-cs-border">
         {tabs.filter((t) => !t.adminOnly || isAdmin).map((t) => {
           const active = pathname === t.href;
           const Icon = t.icon;
@@ -51,9 +51,9 @@ export default function JobTabs({ jobId, propertyName }: Props) {
               key={t.href}
               href={t.href}
               className={
-                "flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 -mb-px transition " +
+                "flex shrink-0 items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 -mb-px transition " +
                 (active
-                  ? "border-cs-accent-blue text-cs-accent-blue"
+                  ? "border-cs-accent-brand text-cs-accent-brand"
                   : "border-transparent text-cs-text-muted hover:text-cs-text-secondary")
               }
             >
