@@ -23,41 +23,12 @@ export async function GET(req: NextRequest, { params }: { params: { accountId: s
       .eq("account_id", accountId)
       .order("is_primary", { ascending: false });
 
-    // Get jobs linked by account_id
-    const { data: linkedJobs } = await supabase
-      .from("onboarding_jobs")
-      .select("*")
-      .eq("account_id", accountId)
-      .order("created_at", { ascending: false });
-
-    // Also find unlinked jobs that match by property name or URL (fallback)
-    let unlinkedMatches: any[] = [];
-    if (account.name || account.property_url) {
-      let query = supabase
-        .from("onboarding_jobs")
-        .select("*")
-        .is("account_id", null)
-        .order("created_at", { ascending: false });
-
-      const { data: allUnlinked } = await query;
-      if (allUnlinked) {
-        unlinkedMatches = allUnlinked.filter((job) => {
-          const nameMatch = account.name && job.property_name &&
-            job.property_name.toLowerCase().includes(account.name.toLowerCase().split(" ")[0]);
-          let urlMatch = false;
-          try {
-            urlMatch = !!(account.property_url && job.property_url &&
-              job.property_url.includes(new URL(account.property_url).hostname));
-          } catch { urlMatch = false; }
-          return nameMatch || urlMatch;
-        });
-      }
-    }
-
-    const jobs = [
-      ...(linkedJobs || []),
-      ...unlinkedMatches.map((j) => ({ ...j, _unlinked: true })),
-    ];
+    const {data:properties,error:propertyError}=await supabase.from("properties").select("*").order("created_at",{ascending:false});
+    if(propertyError)throw propertyError;
+    const jobs=(properties||[]).filter(p=>p.account_id===accountId||(!p.account_id&&(
+      p.name.toLowerCase().trim()===account.name.toLowerCase().trim()||
+      (account.property_url&&p.website_url.replace(/\/$/,"")===account.property_url.replace(/\/$/,""))
+    ))).map(p=>({...p,id:p.workspace_job_id,property_name:p.name,property_url:p.website_url,status:"Property workspace",_unlinked:!p.account_id}));
 
     return NextResponse.json({
       account,

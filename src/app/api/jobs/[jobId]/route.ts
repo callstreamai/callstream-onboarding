@@ -27,6 +27,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { jobId: st
     const supabase = createServiceClient();
     const jobId = params.jobId;
 
+    const {data:linked,error:lookupError}=await supabase.from("onboarding_jobs").select("property_id").eq("id",jobId).single();
+    if(lookupError)throw lookupError;
+    if(linked?.property_id)return NextResponse.json({error:"This record belongs to a permanent property. Property workspaces and source history cannot be deleted from the legacy submissions view."},{status:409});
+
     // Delete storage files for this job
     const { data: files } = await supabase.storage
       .from("onboarding-files")

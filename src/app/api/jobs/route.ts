@@ -86,6 +86,6 @@ export async function POST(req: NextRequest) {
     if (!["https:","http:"].includes(url.protocol) || url.username || url.password || url.hostname === "localhost" || !url.hostname.includes(".")) throw new AccessError("Enter a valid public website URL.",400);
     const { data, error } = await db.rpc("create_managed_property", { p_id:body.requestId,p_actor:user.id,p_url:url.href,p_name:body.name.trim(),p_account:body.accountId || null,p_vertical:body.vertical || null });
     if (error) throw error;
-    return NextResponse.json({ jobId:data });
+    return NextResponse.json({ jobId:data, reused:data!==body.requestId });
   } catch(error) { const { accessResponse } = await import("@/lib/access"); return accessResponse(error); }
 }

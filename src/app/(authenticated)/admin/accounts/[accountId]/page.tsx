@@ -167,7 +167,7 @@ export default function AccountDetailPage() {
           </p>
         </div>
         <button onClick={startOnboarding} className="cs-btn-primary text-sm">
-          <FileInput size={16} /> Start Onboarding
+          <FileInput size={16} /> Create property
         </button>
       </div>
 
@@ -372,9 +372,9 @@ export default function AccountDetailPage() {
 
       {/* Onboarding Jobs */}
       <div className="cs-card p-5">
-        <p className="cs-label mb-4">ONBOARDING SUBMISSIONS ({jobs.length})</p>
+        <p className="cs-label mb-4">PROPERTIES ({jobs.length})</p>
         {jobs.length === 0 ? (
-          <p className="text-xs text-cs-text-muted">No submissions yet. Start onboarding above.</p>
+          <p className="text-xs text-cs-text-muted">No properties yet. Create a property above.</p>
         ) : (
           <div className="space-y-2">
             {jobs.map((job: any) => (
@@ -406,13 +406,12 @@ export default function AccountDetailPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => copyToClipboard(appUrl + "/onboarding/" + job.id + "/workspace", "job-" + job.id)}
+                      onClick={() => copyToClipboard(appUrl + "/properties/" + job.id, "job-" + job.id)}
                       className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-cs-accent-purple/10 text-cs-accent-purple hover:bg-cs-accent-purple/20 transition"
                     >
                       {copied === "job-" + job.id ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Link</>}
                     </button>
-                    <a href={"/api/jobs/" + job.id + "/export"} download className="cs-btn-ghost text-xs py-1">JSON</a>
-                    <button onClick={() => router.push("/onboarding/" + job.id + "/workspace")} className="cs-btn-ghost text-xs py-1">
+                    <button onClick={() => router.push("/properties/" + job.id)} className="cs-btn-ghost text-xs py-1">
                       <ArrowRight size={12} /> View
                     </button>
                   </div>

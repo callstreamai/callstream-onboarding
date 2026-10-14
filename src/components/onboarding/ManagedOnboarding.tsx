@@ -69,6 +69,7 @@ export default function ManagedOnboarding({
         accountId: selectedAccount,
       });
       setJobId(job.jobId);
+      if(job.reused){router.push(`/properties/${job.jobId}`);return;}
       setMessage("Reading the property website…");
       await post("/api/crawl", { jobId: job.jobId });
       let result;
@@ -83,7 +84,7 @@ export default function ManagedOnboarding({
         });
       } while (result.pending);
       sessionStorage.removeItem(key);
-      router.push(`/onboarding/${job.jobId}/knowledge`);
+      router.push(`/properties/${job.jobId}`);
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Could not create the property.",
