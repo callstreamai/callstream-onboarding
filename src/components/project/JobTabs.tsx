@@ -29,10 +29,10 @@ export default function JobTabs({ jobId, propertyName }: Props) {
       adminOnly: false,
     },
     {
-      label: "Knowledge",
+      label: "KB",
       href: "/onboarding/" + jobId + "/knowledge",
       icon: FileJson,
-      adminOnly: true,
+      adminOnly: false,
     },
     {
       label: "Shared workspace",

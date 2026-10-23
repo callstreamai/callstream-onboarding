@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import JobTabs from "@/components/project/JobTabs";
 import Link from "next/link";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { RefreshCw, BookOpen, Download, ArrowUpRight } from "lucide-react";
 type Version = {
   id: string;
@@ -11,12 +12,12 @@ type Version = {
   status: string;
   qa: { question: string; answer: string; sources: string[] }[];
   warnings: string[];
-  provider_id?: string;
-  provider_name?: string;
+  canRefresh?: boolean;
   error_message?: string;
   source_manifest: { id: string; name: string }[];
 };
 export default function KnowledgePage() {
+  const { isAdmin } = useAuth();
   const { jobId } = useParams<{ jobId: string }>();
   const [versions, setVersions] = useState<Version[]>([]);
   const [selected, setSelected] = useState("");
@@ -28,6 +29,7 @@ export default function KnowledgePage() {
   const [ack, setAck] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedQA, setEditedQA] = useState<Version["qa"]>([]);
+  const [baseQA, setBaseQA] = useState<Version["qa"]>([]);
   const [submission, setSubmission] = useState<any>(null);
   const endpoint = `/api/jobs/${jobId}/knowledge`;
   const load = useCallback(async () => {
@@ -86,6 +88,7 @@ export default function KnowledgePage() {
           versionId: version?.id,
           acknowledgeWarnings: ack,
           qa: action === "save" ? editedQA : undefined,
+          baseQA: action === "save" ? baseQA : undefined,
         });
       } while (result.pending);
       if (result.versionId) setSelected(result.versionId);
@@ -109,17 +112,20 @@ export default function KnowledgePage() {
       <JobTabs jobId={jobId} propertyName={submission?.propertyName} />
       <div className="flex flex-wrap justify-between gap-4">
         <div>
-          <p className="cs-label text-cs-accent-brand mb-2">Team workspace</p>
-          <h1 className="text-2xl font-semibold">Property knowledge</h1>
+          <p className="cs-label text-cs-accent-brand mb-2">
+            Property workspace
+          </p>
+          <h1 className="text-2xl font-semibold">KB</h1>
           <p className="text-sm text-cs-text-secondary mt-2">
-            Review sourced answers, then publish a new knowledge version.
+            Manage your knowledge base: review and edit questions and answers,
+            then publish your CSV.
           </p>
         </div>
         <Link
           href={`/onboarding/${jobId}/workspace`}
           className="cs-btn-secondary self-start"
         >
-          Client workspace <ArrowUpRight size={15} />
+          Shared workspace <ArrowUpRight size={15} />
         </Link>
       </div>
       <div className="cs-card p-5 flex flex-wrap gap-5 items-center justify-between">
@@ -132,15 +138,17 @@ export default function KnowledgePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isAdmin && (
+            <button
+              disabled={busy || editing}
+              onClick={() => run("rescrape")}
+              className="cs-btn-secondary"
+            >
+              <RefreshCw size={14} /> Refresh website
+            </button>
+          )}
           <button
-            disabled={busy}
-            onClick={() => run("rescrape")}
-            className="cs-btn-secondary"
-          >
-            <RefreshCw size={14} /> Rescrape website
-          </button>
-          <button
-            disabled={busy}
+            disabled={busy || editing}
             onClick={() => run("generate")}
             className="cs-btn-primary"
           >
@@ -180,6 +188,7 @@ export default function KnowledgePage() {
                 Knowledge version
                 <select
                   aria-label="Knowledge version"
+                  disabled={busy || editing}
                   value={version.id}
                   onChange={(e) => {
                     setEditing(false);
@@ -248,10 +257,10 @@ export default function KnowledgePage() {
                   }
                   onClick={() => run("publish")}
                 >
-                  Publish new KB version
+                  Publish KB
                 </button>
               )}
-              {version.provider_id && (
+              {version.canRefresh && (
                 <button
                   className="cs-btn-secondary"
                   disabled={busy}
@@ -261,13 +270,13 @@ export default function KnowledgePage() {
                 </button>
               )}
               {["uncertain", "publishing"].includes(version.status) &&
-                !version.provider_id && (
+                !version.canRefresh && (
                   <button
                     className="cs-btn-secondary"
                     disabled={busy}
                     onClick={() => run("reconcile")}
                   >
-                    Reconcile delivery
+                    Check delivery
                   </button>
                 )}
             </div>
@@ -281,11 +290,21 @@ export default function KnowledgePage() {
                       setEditing(false);
                     } else {
                       setEditedQA(version.qa.map((row) => ({ ...row })));
+                      setBaseQA(version.qa);
                       setEditing(true);
                     }
                   }}
                 >
                   {editing ? "Cancel editing" : "Edit draft answers"}
+                </button>
+              )}
+              {["published", "failed"].includes(version.status) && (
+                <button
+                  className="cs-btn-secondary"
+                  disabled={busy}
+                  onClick={() => run("revise")}
+                >
+                  Create editable revision
                 </button>
               )}
               {editing && (
@@ -304,29 +323,43 @@ export default function KnowledgePage() {
               and policies with your team.
             </p>
             <p className="text-xs text-cs-text-muted">
-              Admin only: each publish creates a new Bland knowledge item. Your
-              team selects the new version for the agent. Existing agent
-              assignments stay in place.
+              Publishing uploads your Q&A CSV as a new KB version. Your Call
+              Stream team connects the published version to your voice agent.
+              Previous versions remain in your history.
             </p>
-            {version.provider_id && (
-              <p className="text-xs break-all">
-                Knowledge ID: <code>{version.provider_id}</code>
-              </p>
-            )}
-            {version.provider_name && (
-              <p className="text-xs text-cs-text-muted break-all">
-                Version name: {version.provider_name}
-              </p>
-            )}
           </div>
+          {editing && (
+            <button
+              className="cs-btn-secondary"
+              disabled={busy || !version.source_manifest.length}
+              onClick={() =>
+                setEditedQA((rows) => [
+                  ...rows,
+                  { question: "", answer: "", sources: [] },
+                ])
+              }
+            >
+              Add question
+            </button>
+          )}
           <div className="space-y-3">
             {(editing ? editedQA : version.qa).map((row, i) => (
               <article key={i} className="cs-card p-5">
                 {editing ? (
                   <>
+                    <button
+                      className="cs-btn-secondary mb-3"
+                      disabled={busy || editedQA.length <= 1}
+                      onClick={() =>
+                        setEditedQA((rows) => rows.filter((_, n) => n !== i))
+                      }
+                    >
+                      Remove question
+                    </button>
                     <label className="block text-xs mb-2">
                       Question and alternate phrasings
                       <textarea
+                        disabled={busy}
                         className="cs-input mt-2"
                         value={row.question}
                         onChange={(e) =>
@@ -341,6 +374,7 @@ export default function KnowledgePage() {
                     <label className="block text-xs">
                       Spoken answer
                       <textarea
+                        disabled={busy}
                         className="cs-input mt-2 min-h-24"
                         value={row.answer}
                         onChange={(e) =>
@@ -362,7 +396,40 @@ export default function KnowledgePage() {
                 >
                   {row.answer}
                 </p>
-                <details className="mt-3 text-xs text-cs-text-muted">
+                {editing && (
+                  <fieldset className="mt-3 text-xs space-y-2" disabled={busy}>
+                    <legend>Supporting sources (select at least one)</legend>
+                    {version.source_manifest.map((source) => (
+                      <label key={source.id} className="flex gap-2">
+                        <input
+                          type="checkbox"
+                          checked={row.sources.includes(source.id)}
+                          onChange={(e) =>
+                            setEditedQA((rows) =>
+                              rows.map((q, n) =>
+                                n === i
+                                  ? {
+                                      ...q,
+                                      sources: e.target.checked
+                                        ? [...q.sources, source.id]
+                                        : q.sources.filter(
+                                            (id) => id !== source.id,
+                                          ),
+                                    }
+                                  : q,
+                              ),
+                            )
+                          }
+                        />
+                        {source.name}
+                      </label>
+                    ))}
+                  </fieldset>
+                )}
+                <details
+                  hidden={editing}
+                  className="mt-3 text-xs text-cs-text-muted"
+                >
                   <summary className="cursor-pointer">
                     Supporting sources
                   </summary>

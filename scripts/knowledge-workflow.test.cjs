@@ -22,6 +22,8 @@ function load(file, imports = {}, globals = {}) {
     Buffer,
     Response,
     Request,
+    FormData,
+    Blob,
     AbortSignal,
     process,
     console,
@@ -67,6 +69,7 @@ const next = { NextResponse: { json: (b, o) => Response.json(b, o) } };
 function api({
   version = null,
   deny = false,
+  client = true,
   hash = "source",
   requestFetch = async () => {
     throw Error("unexpected provider request");
@@ -81,13 +84,17 @@ function api({
     from(table) {
       let operation = "select",
         values,
-        filters = {};
+        filters = {},
+        singleResult = false;
       const q = {
         select() {
           return q;
         },
         eq(k, v) {
           filters[k] = v;
+          return q;
+        },
+        limit() {
           return q;
         },
         order() {
@@ -104,9 +111,11 @@ function api({
           return q;
         },
         single() {
+          singleResult = true;
           return resolve();
         },
         maybeSingle() {
+          singleResult = true;
           return resolve();
         },
         then(a, b) {
@@ -118,14 +127,23 @@ function api({
           writes.push({ table, values });
           if (table === "knowledge_versions" && filters.status === "draft") {
             if (version.status !== "draft") return { data: null };
-            version.status = values.status;
+            Object.assign(version, values);
             return { data: { id: version.id } };
           }
           if (table === "knowledge_versions") Object.assign(version, values);
           return { data: null };
         }
-        if (operation === "insert") return { data: { id: "new-version" } };
-        return { data: table === "knowledge_versions" ? version : build };
+        if (operation === "insert") {
+          writes.push({ table, values });
+          return { data: { id: "new-version" } };
+        }
+        const result =
+          table === "knowledge_versions"
+            ? filters.status && version?.status !== filters.status
+              ? null
+              : version
+            : build;
+        return { data: singleResult ? result : result ? [result] : [] };
       }
       return q;
     },
@@ -135,8 +153,9 @@ function api({
     {
       "next/server": next,
       "@/lib/access": {
-        requireProject: async () => {
-          if (deny) throw new AccessError("Denied", 403);
+        requireProject: async (_jobId, adminOnly = false) => {
+          if (deny || (client && adminOnly))
+            throw new AccessError("Denied", 403);
           return { db, user: { id: "admin" }, job: { property_name: "Test" } };
         },
         AccessError,
@@ -174,6 +193,11 @@ function api({
     },
   );
   return {
+    get: () =>
+      route.GET(
+        { nextUrl: new URL("https://example.com") },
+        { params: { jobId: "job" } },
+      ),
     post: (body) =>
       route.POST(
         new Request("https://example.com", {
@@ -196,7 +220,7 @@ const draft = () => ({
   warnings: [],
 });
 process.env.BLAND_API_KEY = "test-only";
-test("clients are denied knowledge operations before sources or provider are accessed", async () => {
+test("non-members are denied knowledge operations before sources or provider are accessed", async () => {
   const a = api({ deny: true });
   assert.equal((await a.post({ action: "generate" })).status, 403);
   assert.equal(a.counts().claims, 0);
@@ -231,11 +255,26 @@ test("stale sources and unacknowledged warnings block publishing", async () => {
 });
 test("publishing the same version twice creates exactly one provider item", async () => {
   const version = draft();
+  version.qa[0] = {
+    question: "Where, exactly?",
+    answer: 'Say "hello".\nCafé reception.',
+    sources: ["a"],
+  };
   const a = api({
     version,
     requestFetch: async (url, opts) => {
       assert.equal(url, "https://api.bland.ai/v1/knowledge/learn");
-      assert.equal(JSON.parse(opts.body).type, "text");
+      const request = new Request(url, opts);
+      assert.match(
+        request.headers.get("content-type"),
+        /multipart\/form-data; boundary=/,
+      );
+      assert.equal(request.headers.get("authorization"), "test-only");
+      const form = await request.formData();
+      assert.equal(form.get("type"), "file");
+      assert.equal(form.get("file").name, "property-knowledge-version.csv");
+      assert.match(form.get("file").type, /^text\/csv/);
+      assert.equal(await form.get("file").text(), format.toCSV(version.qa));
       return Response.json({
         data: { id: "provider-item", status: "PROCESSING" },
       });
@@ -377,6 +416,7 @@ test("draft edits require valid references and published versions are immutable"
       await invalid.post({
         action: "save",
         versionId: "version",
+        baseQA: draft().qa,
         qa: [{ question: "Q", answer: "A", sources: ["missing"] }],
       })
     ).status,
@@ -392,6 +432,7 @@ test("draft edits require valid references and published versions are immutable"
   const res = await valid.post({
     action: "save",
     versionId: "version",
+    baseQA: draft().qa,
     qa: [
       {
         question: "Where? / Address?",
@@ -438,4 +479,66 @@ test("every admin endpoint denies access before reading or changing account data
       }
   }
   assert.ok(checked >= 15);
+});
+
+test("client listing hides provider identity and internal errors", async () => {
+  const a = api({
+    version: {
+      ...draft(),
+      provider_id: "secret-provider-id",
+      provider_name: "Internal",
+      error_message: "Bland failed",
+    },
+  });
+  const res = await a.get();
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.versions[0].canRefresh, true);
+  assert.doesNotMatch(
+    JSON.stringify(body),
+    /Bland|provider_id|provider_name|secret-provider-id|Internal/,
+  );
+});
+test("a client can revise a published KB without changing its published history", async () => {
+  const version = { ...draft(), status: "published", provider_id: "old-kb" };
+  const a = api({ version });
+  const res = await a.post({ action: "revise", versionId: "version" });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).versionId, "new-version");
+  assert.equal(version.status, "published");
+  assert.equal(version.provider_id, "old-kb");
+  assert.equal(a.writes[0].values.provider_id, undefined);
+  assert.equal(a.counts().publishes, 0);
+});
+test("stale edits cannot overwrite another client's saved answers", async () => {
+  const a = api({ version: draft() });
+  const res = await a.post({
+    action: "save",
+    versionId: "version",
+    baseQA: [],
+    qa: draft().qa,
+  });
+  assert.equal(res.status, 409);
+  assert.equal(a.writes.length, 0);
+});
+test("non-members cannot read, edit, revise or publish KBs", async () => {
+  const a = api({ deny: true, version: draft() });
+  assert.equal((await a.get()).status, 403);
+  for (const action of ["save", "revise", "publish", "refresh", "reconcile"])
+    assert.equal((await a.post({ action, versionId: "version" })).status, 403);
+  assert.equal(a.writes.length, 0);
+  assert.equal(a.counts().publishes, 0);
+});
+test("processing and stale-source KBs cannot be revised", async () => {
+  for (const opts of [
+    { version: { ...draft(), status: "processing" } },
+    { version: { ...draft(), status: "published" }, hash: "new-sources" },
+  ]) {
+    const a = api(opts);
+    assert.equal(
+      (await a.post({ action: "revise", versionId: "version" })).status,
+      409,
+    );
+    assert.equal(a.writes.length, 0);
+  }
 });

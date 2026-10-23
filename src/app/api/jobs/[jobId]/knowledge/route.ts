@@ -7,12 +7,7 @@ import {
   extractKnowledgeChunk,
   consolidateKnowledge,
 } from "@/lib/knowledge/generate";
-import {
-  validateQA,
-  toCSV,
-  toKnowledgeText,
-  type QA,
-} from "@/lib/knowledge/format";
+import { validateQA, toCSV, type QA } from "@/lib/knowledge/format";
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -20,7 +15,7 @@ export async function GET(
   { params }: { params: { jobId: string } },
 ) {
   try {
-    const { db } = await requireProject(params.jobId, true);
+    const { db } = await requireProject(params.jobId);
     const { data, error } = await db
       .from("knowledge_versions")
       .select("*")
@@ -44,7 +39,15 @@ export async function GET(
     const inventory = await sourceInventory(db, params.jobId);
     return NextResponse.json(
       {
-        versions: data || [],
+        versions: (data || []).map(
+          ({ provider_id, provider_name, error_message, ...version }) => ({
+            ...version,
+            canRefresh: !!provider_id,
+            error_message: error_message
+              ? "This version needs attention. Check publishing status or contact your Call Stream team."
+              : null,
+          }),
+        ),
         sourceHash: inventory.hash,
         sourceCount: inventory.manifest.length,
       },
@@ -61,12 +64,13 @@ export async function POST(
 ) {
   let release: (() => Promise<void>) | undefined;
   try {
-    const { db, user, job } = await requireProject(params.jobId, true);
+    const { db, user, job } = await requireProject(params.jobId);
     const {
       action,
       versionId,
       acknowledgeWarnings,
       qa: editedQA,
+      baseQA,
     } = await req.json();
     if (action === "generate") {
       const inventory = await sourceInventory(db, params.jobId);
@@ -85,6 +89,8 @@ export async function POST(
         .select("id")
         .eq("job_id", params.jobId)
         .eq("source_hash", inventory.hash)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (existing) {
         await finish(db, params.jobId, op.token, inventory.hash, {
@@ -186,7 +192,7 @@ export async function POST(
       release = undefined;
       return NextResponse.json({ versionId: version.id });
     }
-    if (!["publish", "refresh", "reconcile", "save"].includes(action))
+    if (!["publish", "refresh", "reconcile", "save", "revise"].includes(action))
       throw new AccessError("Choose a valid knowledge action.", 400);
     const { data: version, error } = await db
       .from("knowledge_versions")
@@ -195,9 +201,56 @@ export async function POST(
       .eq("id", versionId)
       .single();
     if (error || !version) throw new AccessError("Version not found.", 404);
+    if (action === "revise") {
+      if (!["published", "failed"].includes(version.status))
+        throw new AccessError(
+          "Wait for publishing to finish before creating a revision.",
+          409,
+        );
+      const inventory = await sourceInventory(db, params.jobId);
+      if (inventory.hash !== version.source_hash)
+        throw new AccessError(
+          "Sources have changed. Prepare a new draft first.",
+          409,
+        );
+      const existing = await db
+        .from("knowledge_versions")
+        .select("id")
+        .eq("job_id", params.jobId)
+        .eq("source_hash", version.source_hash)
+        .eq("status", "draft")
+        .maybeSingle();
+      if (existing.error) throw existing.error;
+      if (existing.data)
+        return NextResponse.json({ versionId: existing.data.id });
+      const revision = await db
+        .from("knowledge_versions")
+        .insert({
+          job_id: params.jobId,
+          source_hash: version.source_hash,
+          source_manifest: version.source_manifest,
+          qa: version.qa,
+          warnings: version.warnings,
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+      if (revision.error?.code === "23505")
+        throw new AccessError(
+          "Another draft was just created. Reload to edit it.",
+          409,
+        );
+      if (revision.error) throw revision.error;
+      return NextResponse.json({ versionId: revision.data.id });
+    }
     if (action === "save") {
       if (version.status !== "draft")
         throw new AccessError("Only unpublished drafts can be edited.", 409);
+      if (JSON.stringify(baseQA) !== JSON.stringify(version.qa))
+        throw new AccessError(
+          "This draft changed while you were editing. Reload before saving.",
+          409,
+        );
       let qa: QA[];
       try {
         qa = validateQA(
@@ -271,7 +324,7 @@ export async function POST(
       }
       if (!found)
         throw new AccessError(
-          "Delivery is still unconfirmed. Check the provider using this version name before attempting another publish.",
+          "Delivery is still unconfirmed. Contact your Call Stream team before attempting another publish.",
           409,
         );
       const status =
@@ -339,8 +392,8 @@ export async function POST(
         "Sources have changed. Generate a new draft before publishing.",
         409,
       );
-    const text = toKnowledgeText(version.qa as QA[]);
-    if (Buffer.byteLength(text, "utf8") > 1000000)
+    const csv = toCSV(version.qa as QA[]);
+    if (Buffer.byteLength(csv, "utf8") > 1000000)
       throw new AccessError(
         "This knowledge version exceeds the publishing size limit.",
         422,
@@ -366,16 +419,22 @@ export async function POST(
       .update({ provider_name: name })
       .eq("id", version.id);
     try {
+      const form = new FormData();
+      form.set("type", "file");
+      form.set("name", name);
+      form.set(
+        "description",
+        "Property questions and answers prepared by Call Stream AI.",
+      );
+      form.set(
+        "file",
+        new Blob([csv], { type: "text/csv;charset=utf-8" }),
+        `property-knowledge-${version.id}.csv`,
+      );
       const response = await fetch("https://api.bland.ai/v1/knowledge/learn", {
         method: "POST",
-        headers: { Authorization: apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "text",
-          name,
-          description:
-            "Unified property questions and spoken answers prepared by Call Stream AI.",
-          text,
-        }),
+        headers: { Authorization: apiKey },
+        body: form,
         signal: AbortSignal.timeout(60000),
       });
       if (!response.ok) {
@@ -420,7 +479,7 @@ export async function POST(
           .update({
             status: "uncertain",
             error_message:
-              "Delivery could not be confirmed. Check the version name in the provider before retrying.",
+              "Delivery could not be confirmed. Contact your Call Stream team before retrying.",
           })
           .eq("id", version.id);
       throw error;

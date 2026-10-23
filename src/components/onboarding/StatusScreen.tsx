@@ -193,7 +193,7 @@ export function StatusScreen({ jobId }: Props) {
       {/* 3-column summary grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-        {isAdmin && <Link href={`/onboarding/${jobId}/knowledge`} className="cs-card p-5 hover:border-cs-accent-brand/50 transition"><FileJson size={20} className="text-cs-accent-brand mb-4"/><h3 className="text-sm font-medium">Knowledge</h3><p className="text-xs text-cs-text-muted mt-2">Prepare, review, and publish your property Q&A versions.</p></Link>}
+        {<Link href={`/onboarding/${jobId}/knowledge`} className="cs-card p-5 hover:border-cs-accent-brand/50 transition"><FileJson size={20} className="text-cs-accent-brand mb-4"/><h3 className="text-sm font-medium">KB</h3><p className="text-xs text-cs-text-muted mt-2">Prepare, review, and publish your property Q&A versions.</p></Link>}
 
         {/* Workspace card */}
         <Link
