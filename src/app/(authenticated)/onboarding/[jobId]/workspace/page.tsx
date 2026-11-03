@@ -112,6 +112,7 @@ export default function WorkspacePage() {
   const [newSpaceIcon, setNewSpaceIcon] = useState("folder");
   const [showNewIconPicker, setShowNewIconPicker] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [savingSpace, setSavingSpace] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -171,29 +172,45 @@ export default function WorkspacePage() {
     loadComments();
   }, [loadWorkspace, loadComments]);
 
+  async function saveFolder(method: "POST" | "PATCH", details: Record<string, unknown>) {
+    setSavingSpace(true);
+    setUploadError(null);
+    try {
+      const res = await fetch("/api/jobs/" + jobId + "/spaces", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(details),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Could not save folder. Please try again.");
+      }
+      const { space } = await res.json();
+      setSpaces((prev) => method === "POST"
+        ? [...prev, { ...space, space_documents: [] }]
+        : prev.map((s) => s.id === space.id ? { ...s, ...space } : s));
+      return true;
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Could not save folder. Please try again.");
+      return false;
+    } finally {
+      setSavingSpace(false);
+    }
+  }
+
   async function handleAddSpace() {
-    if (!newSpaceName.trim()) return;
-    await fetch("/api/jobs/" + jobId + "/spaces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newSpaceName, description: newSpaceDesc, icon: newSpaceIcon, userId: user?.id }),
-    });
+    if (!newSpaceName.trim() || savingSpace) return;
+    if (!await saveFolder("POST", { name: newSpaceName.trim(), description: newSpaceDesc.trim(), icon: newSpaceIcon })) return;
     setNewSpaceName("");
     setNewSpaceDesc("");
     setNewSpaceIcon("folder");
     setShowNewSpace(false);
-    loadWorkspace();
   }
 
   async function handleChangeIcon(spaceId: string, icon: string) {
-    // Optimistic update
-    setSpaces((prev) => prev.map((s) => s.id === spaceId ? { ...s, icon } : s));
+    if (savingSpace) return;
     setIconPickerFor(null);
-    await fetch("/api/jobs/" + jobId + "/spaces", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaceId, icon }),
-    });
+    await saveFolder("PATCH", { spaceId, icon });
   }
 
   function beginEditSpace(space: Space) {
@@ -204,23 +221,11 @@ export default function WorkspacePage() {
   }
 
   async function handleUpdateSpace() {
-    if (!editingSpaceId || !editSpaceName.trim()) return;
-    const res = await fetch("/api/jobs/" + jobId + "/spaces", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaceId: editingSpaceId, name: editSpaceName.trim(), description: editSpaceDesc.trim() || null }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "Update failed" }));
-      setUploadError(err.error || "Update failed");
-      return;
-    }
-
+    if (!editingSpaceId || !editSpaceName.trim() || savingSpace) return;
+    if (!await saveFolder("PATCH", { spaceId: editingSpaceId, name: editSpaceName.trim(), description: editSpaceDesc.trim() || null })) return;
     setEditingSpaceId(null);
     setEditSpaceName("");
     setEditSpaceDesc("");
-    loadWorkspace();
   }
 
   async function handleDeleteSpace(space: Space) {
@@ -361,12 +366,13 @@ export default function WorkspacePage() {
             >
               <Download size={13} /> Download all docs
             </a>
-            {isAdmin && <button
+            <button
+              disabled={savingSpace}
               onClick={() => setShowNewSpace(!showNewSpace)}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-accent-brand/10 text-cs-accent-brand hover:bg-cs-accent-brand/20"
             >
               <Plus size={13} /> Add folder
-            </button>}
+            </button>
           </div>
         </div>
 
@@ -375,7 +381,7 @@ export default function WorkspacePage() {
         {/* New space form */}
         {showNewSpace && (
           <div className="cs-card p-4 space-y-3">
-            <p className="text-xs font-medium text-cs-text-primary">New Space</p>
+            <p className="text-xs font-medium text-cs-text-primary">New folder</p>
             <div className="flex gap-3 items-start">
               {/* Icon selector */}
               <div className="relative flex-shrink-0">
@@ -398,13 +404,17 @@ export default function WorkspacePage() {
               {/* Name + desc */}
               <div className="flex-1 space-y-2">
                 <input
+                  maxLength={120}
+                  aria-label="Folder name"
                   value={newSpaceName}
                   onChange={(e) => setNewSpaceName(e.target.value)}
-                  placeholder="Space name (e.g., Spa & Wellness)"
+                  placeholder="Folder name (e.g., Spa & Wellness)"
                   className="cs-input"
                   autoFocus
                 />
                 <input
+                  maxLength={2000}
+                  aria-label="Folder description"
                   value={newSpaceDesc}
                   onChange={(e) => setNewSpaceDesc(e.target.value)}
                   placeholder="Description (optional)"
@@ -413,8 +423,8 @@ export default function WorkspacePage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={handleAddSpace} className="cs-btn-primary text-xs px-3 py-1.5">Create space</button>
-              <button onClick={() => { setShowNewSpace(false); setNewSpaceIcon("folder"); }} className="text-xs text-cs-text-muted">Cancel</button>
+              <button disabled={savingSpace || !newSpaceName.trim()} onClick={handleAddSpace} className="cs-btn-primary text-xs px-3 py-1.5">{savingSpace ? "Creating..." : "Create folder"}</button>
+              <button disabled={savingSpace} onClick={() => { setShowNewSpace(false); setNewSpaceIcon("folder"); }} className="text-xs text-cs-text-muted">Cancel</button>
             </div>
           </div>
         )}
@@ -446,7 +456,7 @@ export default function WorkspacePage() {
                     setIconPickerFor(null);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
+                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
                       e.preventDefault();
                       const nextActive = activeSpace === space.id ? null : space.id;
                       setActiveSpace(nextActive);
@@ -459,17 +469,18 @@ export default function WorkspacePage() {
                     (activeSpace === space.id ? "border-cs-accent-brand" : "")
                   }
                 >
-                  {isAdmin && <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
                     <button
                       type="button"
+                      disabled={savingSpace}
                       onClick={(e) => { e.stopPropagation(); beginEditSpace(space); }}
                       className="w-7 h-7 rounded-md bg-cs-bg/90 border border-cs-border text-cs-text-muted hover:text-cs-accent-brand hover:border-cs-accent-brand/50 flex items-center justify-center transition"
-                      title="Edit space"
+                      title="Edit folder"
                       aria-label={`Edit ${space.name}`}
                     >
                       <Pencil size={13} />
                     </button>
-                    <button
+                    {isAdmin && <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleDeleteSpace(space); }}
                       disabled={deletingSpaceId === space.id}
@@ -478,20 +489,23 @@ export default function WorkspacePage() {
                       aria-label={`Delete ${space.name}`}
                     >
                       <Trash2 size={13} />
-                    </button>
+                    </button>}
                   </div>
-                  }<div className="flex items-start justify-between gap-12 mb-2">
+                  <div className="flex items-start justify-between gap-12 mb-2">
                     {/* Icon — click to change */}
-                    <div
+                    <button
+                      type="button"
+                      disabled={savingSpace}
+                      aria-label={`Change icon for ${space.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if(isAdmin)setIconPickerFor(isPickerOpen ? null : space.id);
+                        setIconPickerFor(isPickerOpen ? null : space.id);
                       }}
                       className="w-8 h-8 rounded-md bg-cs-accent-brand/10 flex items-center justify-center cursor-pointer hover:bg-cs-accent-brand/25 hover:ring-1 hover:ring-cs-accent-brand/40 transition group"
-                      title={isAdmin?"Click to change icon":space.name}
+                      title="Click to change icon"
                     >
                       <IconComp size={16} className="text-cs-accent-brand" />
-                    </div>
+                    </button>
                     <div className="flex gap-1 pr-16">
                       {true && (
                         <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
@@ -524,22 +538,26 @@ export default function WorkspacePage() {
 
                 {editingSpaceId === space.id && (
                   <div className="mt-2 cs-card p-3 space-y-2 border-cs-accent-brand/40">
-                    <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Edit space</p>
+                    <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Edit folder</p>
                     <input
+                      maxLength={120}
+                      aria-label="Folder name"
                       value={editSpaceName}
                       onChange={(e) => setEditSpaceName(e.target.value)}
                       className="cs-input text-xs"
-                      placeholder="Space name"
+                      placeholder="Folder name"
                     />
                     <input
+                      maxLength={2000}
+                      aria-label="Folder description"
                       value={editSpaceDesc}
                       onChange={(e) => setEditSpaceDesc(e.target.value)}
                       className="cs-input text-xs"
                       placeholder="Description"
                     />
                     <div className="flex gap-2">
-                      <button onClick={handleUpdateSpace} className="cs-btn-primary text-xs px-3 py-1.5">Save</button>
-                      <button onClick={() => setEditingSpaceId(null)} className="text-xs text-cs-text-muted hover:text-cs-text-secondary">Cancel</button>
+                      <button disabled={savingSpace || !editSpaceName.trim()} onClick={handleUpdateSpace} className="cs-btn-primary text-xs px-3 py-1.5">{savingSpace ? "Saving..." : "Save"}</button>
+                      <button disabled={savingSpace} onClick={() => setEditingSpaceId(null)} className="text-xs text-cs-text-muted hover:text-cs-text-secondary">Cancel</button>
                     </div>
                   </div>
                 )}
