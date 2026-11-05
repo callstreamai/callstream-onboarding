@@ -375,14 +375,14 @@ function PropertyFiles({ jobId }: { jobId: string }) {
     <div ref={workspaceRef}>
       <JobTabs jobId={jobId} />
 
-      <div className="space-y-6">
+      <div className="space-y-7">
         {/* File navigation and actions */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             {active && <button className="inline-flex min-h-11 items-center gap-2 text-sm text-cs-accent-brand mb-2" onClick={() => { setActiveSpace(null); setShowAddLink(false); }}>
               <ArrowLeft size={16} /> All folders
             </button>}
-            <h1 ref={filesHeadingRef} tabIndex={-1} className="text-2xl font-semibold text-cs-text-primary break-words scroll-mt-6">{active ? active.name : "Files"}</h1>
+            <h1 ref={filesHeadingRef} tabIndex={-1} className="cs-page-heading break-words scroll-mt-6">{active ? active.name : "Files"}</h1>
             <p className="text-sm text-cs-text-secondary mt-2">{active ? active.description || "Upload and manage the files in this folder." : "Open a folder to upload documents, or create one for your team."}</p>
           </div>
           {!active && <div className="grid grid-cols-2 gap-2 sm:flex shrink-0">
@@ -470,8 +470,8 @@ function PropertyFiles({ jobId }: { jobId: string }) {
             const isPickerOpen = iconPickerFor === space.id;
             return (
               <div key={space.id} className="relative">
-                <div className="cs-card hover:border-cs-accent-brand/50 transition-colors">
-                  <div className="flex items-center justify-between px-4 pt-3">
+                <div className="cs-card hover:border-cs-border-hover transition-colors">
+                  <div className="flex items-center justify-between px-5 pt-4">
                     <span className="text-sm text-cs-text-secondary">{docCount} {docCount === 1 ? "file" : "files"}</span>
                     <details className="relative group" onKeyDown={e => { if (e.key === "Escape") e.currentTarget.removeAttribute("open"); }}>
                       <summary aria-label={`Actions for ${space.name}`} className="list-none min-h-11 min-w-11 flex items-center justify-center rounded-lg cursor-pointer hover:bg-cs-border/40 [&::-webkit-details-marker]:hidden">
@@ -490,11 +490,11 @@ function PropertyFiles({ jobId }: { jobId: string }) {
                       </div>
                     </details>
                   </div>
-                  <button className="block w-full p-4 pt-1 text-left rounded-b-2xl" aria-label={`Open ${space.name} folder`} onClick={() => openFolder(space.id)}>
-                    <IconComp size={24} className="text-cs-accent-brand mb-3" />
-                    <h2 className="text-base font-semibold break-words">{space.name}</h2>
+                  <button className="block w-full p-5 pt-2 sm:p-6 sm:pt-2 text-left rounded-b-xl group" aria-label={`Open ${space.name} folder`} onClick={() => openFolder(space.id)}>
+                    <IconComp size={24} className="text-cs-text-secondary group-hover:text-cs-accent-brand transition-colors mb-4" />
+                    <h2 className="text-lg font-semibold break-words">{space.name}</h2>
                     {space.description && <p className="text-sm text-cs-text-secondary mt-2 line-clamp-2">{space.description}</p>}
-                    <span className="inline-flex items-center gap-2 text-sm text-cs-accent-brand mt-4">Open folder<ArrowRight size={16} /></span>
+                    <span className="inline-flex items-center gap-2 text-sm text-cs-text-primary mt-5 group-hover:text-cs-accent-brand transition-colors">Open folder<ArrowRight size={16} /></span>
                   </button>
                 </div>
 
@@ -542,7 +542,7 @@ function PropertyFiles({ jobId }: { jobId: string }) {
 
         {/* Active space detail */}
         {active && (
-          <div className="cs-card p-5 space-y-4">
+          <div className="cs-card p-5 sm:p-7 space-y-6">
             {/* Upload area */}
             <label className="block border-2 border-dashed border-cs-border rounded-xl p-6 sm:p-8 text-center cursor-pointer hover:border-cs-accent-brand focus-within:ring-2 focus-within:ring-cs-accent-brand transition">
               <input

@@ -36,14 +36,14 @@ export default function JobTabs({ jobId, propertyName }: { jobId: string; proper
   ];
   const selected = tabs.find(t => pathname === t.href || (t.label === "Overview" && pathname.startsWith("/properties/") && !pathname.endsWith("/history")))?.href || "";
   return (
-    <div className="mb-6 space-y-4">
+    <div className="mb-8 space-y-5">
       <Link href="/properties" className="inline-flex min-h-11 items-center gap-2 text-sm text-cs-text-secondary hover:text-white">
         <ArrowLeft size={16} /> All properties
       </Link>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="cs-label mb-1">Property workspace</p>
-          <p className="text-xl font-semibold break-words">{name}</p>
+          <p className="text-[22px] sm:text-[26px] font-semibold tracking-[-0.03em] leading-tight break-words">{name}</p>
         </div>
         {properties.length > 1 && <label className="block sm:w-64 shrink-0">
           <span className="sr-only">Switch property</span>
@@ -65,9 +65,9 @@ export default function JobTabs({ jobId, propertyName }: { jobId: string; proper
           {tabs.map(t => <option key={t.href} value={t.href}>{t.label}</option>)}
         </select>
       </label>
-      <nav aria-label="Property sections" className="hidden sm:flex flex-wrap gap-1 border-b border-cs-border">
+      <nav aria-label="Property sections" className="hidden sm:flex flex-wrap gap-2 border-b border-cs-border pt-2">
         {tabs.map(t => <Link key={t.href} href={t.href} aria-current={selected === t.href ? "page" : undefined}
-          className={`flex min-h-11 items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition ${selected === t.href ? "border-cs-accent-brand text-cs-accent-brand" : "border-transparent text-cs-text-secondary hover:text-white"}`}>
+          className={`flex min-h-11 items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition ${selected === t.href ? "border-cs-accent-brand text-cs-text-primary" : "border-transparent text-cs-text-secondary hover:text-white"}`}>
           <t.icon size={16} />{t.label}
         </Link>)}
       </nav>

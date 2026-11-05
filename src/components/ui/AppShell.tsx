@@ -29,13 +29,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {menuOpen && <button aria-label="Close navigation" className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setMenuOpen(false)} />}
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <main className="lg:ml-56 min-h-screen min-w-0">
+      <main className="lg:ml-60 min-h-screen min-w-0">
         {/* Global top bar with notification bell */}
-        <div className="flex items-center justify-between lg:justify-end px-5 sm:px-8 py-4 border-b border-cs-border/50">
+        <div className="max-w-[1440px] mx-auto flex min-h-16 items-center justify-between lg:justify-end px-5 sm:px-8 lg:px-10 py-2">
           <button className="cs-btn-secondary lg:hidden" aria-controls="main-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={18} />Menu</button>
           {user && <NotificationBell userId={user.id} />}
         </div>
-        <div className="p-5 sm:p-8">{children}</div>
+        <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-10 pt-2 sm:pt-4 pb-12 sm:pb-16">{children}</div>
       </main>
     </>
   );

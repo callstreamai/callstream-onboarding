@@ -155,7 +155,7 @@ export default function ProjectPage() {
 
         {/* Page header */}
         <div>
-          <h1 className="text-lg font-semibold text-cs-text-primary">Launch progress</h1>
+          <h1 className="cs-page-heading">Launch progress</h1>
           <p className="text-sm text-cs-text-secondary mt-1">Track milestones, tasks, and team updates.</p>
         </div>
 

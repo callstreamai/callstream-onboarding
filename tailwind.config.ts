@@ -12,15 +12,15 @@ const config: Config = {
         cs: {
           bg: "#000000",
           surface: "#0a0a0a",
-          card: "#111111",
-          border: "#29232d",
-          "border-hover": "#514056",
-          "text-primary": "#ffffff",
-          "text-secondary": "#b8b2bd",
-          "text-muted": "#a9a2b0",
-          "text-label": "#a9a2b0",
+          card: "#0c0c0c",
+          border: "#1c1c1c",
+          "border-hover": "#383838",
+          "text-primary": "#f5f5f5",
+          "text-secondary": "#a0a0a0",
+          "text-muted": "#a0a0a0",
+          "text-label": "#a0a0a0",
           accent: {
-            brand: "#e879c6",
+            brand: "#d560b2",
             green: "#4ade80",
             blue: "#60a5fa",
             purple: "#a78bfa",
@@ -31,7 +31,9 @@ const config: Config = {
         },
       },
       fontFamily: {
+        mono: ["CallStream Mono", "ui-monospace", "monospace"],
         sans: [
+          "CallStream Inter",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",

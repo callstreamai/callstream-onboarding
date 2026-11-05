@@ -62,45 +62,37 @@ export function Sidebar({
   return (
     <aside
       id="main-navigation"
-      className={`fixed left-0 top-0 h-dvh w-56 bg-cs-bg border-r border-cs-border flex-col z-50 ${open ? "flex" : "hidden lg:flex"}`}
+      className={`fixed left-0 top-0 h-dvh w-60 bg-cs-bg border-r border-cs-border flex-col z-50 ${open ? "flex" : "hidden lg:flex"}`}
     >
-      <div className="px-5 pt-5 pb-4 flex justify-between items-center gap-2">
+      <div className="mx-4 pt-3 pb-3 mb-4 border-b border-cs-border flex justify-between items-center gap-2">
         <img
           src="/logo.png"
           alt="Call Stream AI"
-          className="h-8 max-w-[155px] object-contain"
+          className="w-48 h-16 object-contain"
         />
         <button
-          className="lg:hidden p-1"
+          className="lg:hidden absolute right-2 top-2 min-h-11 min-w-11 flex items-center justify-center"
           aria-label="Close navigation"
           onClick={onClose}
         >
           <X size={18} />
         </button>
       </div>
-      <p className="cs-label px-5 pb-5 text-cs-accent-brand">
-        Launch workspace
-      </p>
-
-      <div className="mx-3 mb-4 px-3 py-2.5 bg-cs-card rounded-md border border-cs-border">
-        <p className="cs-label text-[10px]">ACCOUNT</p>
-        <p className="text-sm text-cs-text-primary mt-0.5 truncate">
+      <div className="mx-4 mb-6 px-3 py-3 bg-cs-card rounded-lg border border-[#303030]">
+        <p className="text-xs text-cs-text-secondary">Account</p>
+        <p className="text-sm font-medium text-cs-text-primary mt-1 truncate">
           {profile?.company_name || profile?.full_name || "Call Stream AI"}
         </p>
-        {isAdmin && (
-          <span className="cs-badge bg-cs-accent-purple/10 text-cs-accent-purple mt-1">
-            ADMIN
-          </span>
-        )}
+        <p className="font-mono text-[10px] tracking-wider text-cs-text-muted mt-2">{isAdmin ? "LAUNCH · ADMIN" : "LAUNCH WORKSPACE"}</p>
       </div>
 
       <nav
         aria-label="Main navigation"
-        className="flex-1 px-3 space-y-5 overflow-y-auto"
+        className="flex-1 px-4 space-y-7 overflow-y-auto"
       >
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
-            <p className="cs-label text-[10px] px-3 mb-1.5">{section.label}</p>
+            <p className="cs-label px-3 mb-2">{section.label}</p>
             {section.items.map((item) => {
               const isActive = item.href === "/onboarding"
                 ? pathname === "/onboarding"
@@ -118,7 +110,7 @@ export function Sidebar({
                     isActive ? "cs-sidebar-item-active" : "cs-sidebar-item"
                   }
                 >
-                  <Icon size={16} />
+                  <Icon size={20} />
                   {item.label}
                 </Link>
               );
@@ -127,18 +119,18 @@ export function Sidebar({
         ))}
       </nav>
 
-      <div className="p-3 border-t border-cs-border space-y-1">
+      <div className="p-4 mt-4 border-t border-cs-border space-y-1">
         <div className="px-3 py-1.5">
-          <p className="text-xs text-cs-text-primary truncate">
+          <p className="text-sm text-cs-text-primary truncate">
             {profile?.full_name || "User"}
           </p>
-          <p className="text-[10px] text-cs-text-muted truncate">
+          <p className="text-xs text-cs-text-muted truncate">
             {profile?.email}
           </p>
         </div>
         <button
           onClick={signOut}
-          className="cs-sidebar-item w-full text-cs-accent-red/70 hover:text-cs-accent-red"
+          className="cs-sidebar-item w-full"
         >
           <LogOut size={16} />
           Sign out

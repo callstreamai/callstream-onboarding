@@ -76,9 +76,9 @@ export default async function Page({
   return (
     <div className="space-y-6">
       <JobTabs jobId={p.workspace_job_id} propertyName={p.name} />
-      <div className="cs-card p-6">
-        <p className="cs-label text-cs-accent-brand mb-2">PROPERTY WORKSPACE</p>
-        <h1 className="text-2xl font-semibold">Property overview</h1>
+      <div className="cs-card p-5 sm:p-7">
+        <p className="cs-label mb-2">PROPERTY WORKSPACE</p>
+        <h1 className="cs-page-heading">Property overview</h1>
         <p className="text-sm text-cs-text-muted mt-2 break-all">
           {websiteHost(p.website_url)}
         </p>
@@ -93,9 +93,9 @@ export default async function Page({
           )}
         </div>
       </div>
-      <section className="cs-card p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-cs-accent-brand/40">
+      <section className="cs-card p-5 sm:p-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="cs-label text-cs-accent-brand mb-2">Next step</p>
+          <p className="cs-label mb-2">Next step</p>
           <h2 className="text-lg font-semibold">{next.label}</h2>
           <p className="text-sm text-cs-text-secondary mt-2">{next.description}</p>
         </div>
@@ -121,8 +121,8 @@ export default async function Page({
       )}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         {cards.map((c) => (
-          <Link key={c.label} href={c.href} className="cs-card-hover p-6">
-            <c.icon size={22} className="text-cs-accent-brand mb-4" />
+          <Link key={c.label} href={c.href} className="cs-card-hover p-5 sm:p-7">
+            <c.icon size={22} className="text-cs-text-secondary mb-5" />
             <h2 className="font-semibold">{c.label}</h2>
             <p className="text-sm text-cs-text-secondary mt-2">
               {c.description}

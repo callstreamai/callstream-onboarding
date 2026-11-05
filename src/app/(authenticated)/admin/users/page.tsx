@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Users size={20} className="text-cs-accent-purple" />
-          <h1 className="text-2xl font-semibold">Users</h1>
+          <h1 className="cs-page-heading">Users</h1>
         </div>
         <button
           onClick={() => { setShowInvite(true); setInviteResult(null); setInviteError(""); }}

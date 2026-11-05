@@ -66,24 +66,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cs-bg bg-[radial-gradient(ellipse_at_top,rgba(232,121,198,0.12),transparent_60%)] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-cs-bg flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-[460px]">
         <div className="mb-8 flex flex-col items-center">
           <img
             src="/logo.png"
             alt="Call Stream AI"
-            className="h-10 w-auto object-contain"
+            className="w-60 h-20 object-contain"
           />
-          <p className="text-[10px] text-cs-text-muted uppercase tracking-widest mt-2">
+          <p className="cs-label mt-1">
             YOUR CALL STREAM LAUNCH WORKSPACE
           </p>
         </div>
 
-        <div className="cs-card p-8 shadow-2xl">
-          <h2 className="text-lg font-semibold text-cs-text-primary mb-1">
-            {codeSent ? "Enter your Magic Code" : "Welcome to your next chapter."}
-          </h2>
-          <p className="text-sm text-cs-text-secondary mb-6">
+        <div className="cs-card p-6 sm:p-9">
+          <h1 className="text-2xl font-semibold tracking-tight text-cs-text-primary mb-3">
+            {codeSent ? "Enter your Magic Code" : "Your launch workspace."}
+          </h1>
+          <p className="text-sm leading-relaxed text-cs-text-secondary mb-7">
             {codeSent
               ? "Enter the sign-in code we sent to your email."
               : "Bring your property, knowledge, and voice together. Sign in with your invited email to get started."}

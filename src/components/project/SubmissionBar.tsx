@@ -35,10 +35,10 @@ export default function SubmissionBar({
     }
   }
   return (
-    <section className="cs-card p-5 space-y-4">
+    <section className="cs-card p-5 sm:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="font-medium">
+          <p className="font-semibold">
             {data?.propertyName || "Your property"} · File review
           </p>
           <p className="text-sm text-cs-text-secondary mt-2">
