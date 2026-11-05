@@ -97,7 +97,7 @@ export default function ManagedOnboarding({
     <div className="max-w-3xl space-y-8">
       <div>
         <p className="cs-label text-cs-accent-brand mb-2">Managed onboarding</p>
-        <h1 className="text-3xl font-semibold">Create a property</h1>
+        <h1 className="cs-page-heading">Create a property</h1>
         <p className="text-cs-text-secondary mt-3">
           Prepare the website knowledge, then invite your client into their
           shared workspace.

@@ -9,6 +9,8 @@ import {
   ClipboardList,
   ArrowLeft,
 } from "lucide-react";
+import JobTabs from "@/components/project/JobTabs";
+import { propertyNextStep, websiteHost } from "@/lib/launch-navigation";
 import PropertyDetails from "@/components/properties/PropertyDetails";
 export const dynamic = "force-dynamic";
 export default async function Page({
@@ -21,10 +23,11 @@ export default async function Page({
     redirect("/properties/" + property.property_key);
   const { properties } = await listProperties();
   const p = properties.find((x) => x.id === property.id)!;
+  const next = propertyNextStep(p);
   const base = "/onboarding/" + p.workspace_job_id;
   const cards = [
     {
-      label: "Shared files",
+      label: "Files",
       description:
         "Upload and organize documents, then submit them for review.",
       href: base + "/workspace",
@@ -51,7 +54,7 @@ export default async function Page({
       detail: p.status,
     },
     {
-      label: "Voice Studio",
+      label: "Voice",
       description: "Listen to previews and choose your property’s voice.",
       href: base + "/voice-preview",
       icon: Mic2,
@@ -72,31 +75,32 @@ export default async function Page({
   ];
   return (
     <div className="space-y-6">
-      <Link href="/properties" className="cs-btn-ghost inline-flex text-sm">
-        <ArrowLeft size={15} />
-        Properties
-      </Link>
-      <div className="cs-card p-6">
-        <p className="cs-label text-cs-accent-brand mb-2">PROPERTY WORKSPACE</p>
-        <h1 className="text-3xl font-semibold">{p.name}</h1>
+      <JobTabs jobId={p.workspace_job_id} propertyName={p.name} />
+      <div className="cs-card p-5 sm:p-7">
+        <p className="cs-label mb-2">PROPERTY WORKSPACE</p>
+        <h1 className="cs-page-heading">Property overview</h1>
         <p className="text-sm text-cs-text-muted mt-2 break-all">
-          {p.website_url}
+          {websiteHost(p.website_url)}
         </p>
         <div className="flex gap-3 flex-wrap mt-4">
           <span className="cs-badge bg-cs-accent-brand/10 text-cs-accent-brand">
             {p.status}
           </span>
-          {isAdmin && (
+          {isAdmin && p.account_name !== p.name && (
             <span className="text-sm text-cs-text-muted">
               {p.account_name || "Client account not linked"}
             </span>
           )}
         </div>
-        <p className="text-sm text-cs-text-secondary mt-4">
-          This is the permanent home for your property. Website refreshes and
-          new knowledge versions keep the same shared workspace.
-        </p>
       </div>
+      <section className="cs-card p-5 sm:p-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p className="cs-label mb-2">Next step</p>
+          <h2 className="text-lg font-semibold">{next.label}</h2>
+          <p className="text-sm text-cs-text-secondary mt-2">{next.description}</p>
+        </div>
+        <Link href={next.href} className="cs-btn-primary shrink-0">{next.label} →</Link>
+      </section>
       {p.warning && (
         <div className="cs-card p-4 text-cs-accent-orange">
           {p.warning}. Review the source before preparing knowledge.
@@ -117,8 +121,8 @@ export default async function Page({
       )}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         {cards.map((c) => (
-          <Link key={c.label} href={c.href} className="cs-card-hover p-6">
-            <c.icon size={22} className="text-cs-accent-brand mb-4" />
+          <Link key={c.label} href={c.href} className="cs-card-hover p-5 sm:p-7">
+            <c.icon size={22} className="text-cs-text-secondary mb-5" />
             <h2 className="font-semibold">{c.label}</h2>
             <p className="text-sm text-cs-text-secondary mt-2">
               {c.description}

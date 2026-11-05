@@ -112,7 +112,7 @@ export default function VoiceStudio() {
     <div className="max-w-7xl mx-auto">
       <header className="mb-8 flex items-start gap-4">
         <div className="rounded-2xl bg-cs-accent-brand/10 border border-cs-accent-brand/20 p-3"><Mic2 className="text-cs-accent-brand" size={24} /></div>
-        <div><p className="cs-label mb-1 text-cs-accent-brand">CALL STREAM AI / VOICE</p><h1 className="text-3xl font-semibold tracking-tight">Voice Studio</h1><p className="text-sm text-cs-text-secondary mt-2">Find the voice that feels like your brand. Try a greeting, compare voices, and listen.</p></div>
+        <div><p className="cs-label mb-1 text-cs-accent-brand">CALL STREAM AI / VOICE</p><h1 className="cs-page-heading">Voice Studio</h1><p className="text-sm text-cs-text-secondary mt-2">Find the voice that feels like your brand. Try a greeting, compare voices, and listen.</p></div>
       </header>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)] gap-6 items-start">
         <section className="cs-card p-5 sm:p-6" aria-labelledby="voice-library-heading">

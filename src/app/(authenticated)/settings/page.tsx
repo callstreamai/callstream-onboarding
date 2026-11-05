@@ -73,7 +73,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Settings</h1>
+      <h1 className="cs-page-heading mb-6">Settings</h1>
       <div className="max-w-xl space-y-6">
 
         {/* Supabase */}

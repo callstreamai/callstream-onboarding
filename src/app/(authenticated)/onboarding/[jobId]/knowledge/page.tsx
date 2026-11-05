@@ -115,7 +115,7 @@ export default function KnowledgePage() {
           <p className="cs-label text-cs-accent-brand mb-2">
             Property workspace
           </p>
-          <h1 className="text-2xl font-semibold">KB</h1>
+          <h1 className="cs-page-heading">Knowledge</h1>
           <p className="text-sm text-cs-text-secondary mt-2">
             Manage your knowledge base: review and edit questions and answers,
             then publish your CSV.

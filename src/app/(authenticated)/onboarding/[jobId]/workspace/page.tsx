@@ -10,7 +10,7 @@ import CommentFeed from "@/components/project/CommentFeed";
 import {
   Folder, FileText, Upload, Plus,
   CheckCircle2, Clock, X, Check,
-  Video, Globe, Trash2, ExternalLink, Pencil, Calendar, Download,
+  Video, Globe, Trash2, ExternalLink, Pencil, Calendar, Download, ArrowLeft, ArrowRight, MoreHorizontal,
 } from "lucide-react";
 import { ICON_MAP, ICON_LABELS } from "@/lib/spaceIcons";
 
@@ -100,8 +100,14 @@ function IconPicker({
 export default function WorkspacePage() {
   const params = useParams();
   const jobId = params.jobId as string;
+  return <PropertyFiles key={jobId} jobId={jobId} />;
+}
+
+function PropertyFiles({ jobId }: { jobId: string }) {
   const { user, profile, isAdmin } = useAuth();
 
+  const filesHeadingRef = useRef<HTMLHeadingElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [commentUsers, setCommentUsers] = useState<any[]>([]);
@@ -112,6 +118,7 @@ export default function WorkspacePage() {
   const [newSpaceIcon, setNewSpaceIcon] = useState("folder");
   const [showNewIconPicker, setShowNewIconPicker] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [savingSpace, setSavingSpace] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -127,27 +134,45 @@ export default function WorkspacePage() {
   // Icon editing per card
   const [iconPickerFor, setIconPickerFor] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!activeSpace) return;
+    filesHeadingRef.current?.focus({ preventScroll: true });
+    workspaceRef.current?.scrollIntoView({ block: "start" });
+  }, [activeSpace]);
+
+  function openFolder(spaceId: string) {
+    setActiveSpace(spaceId);
+    loadLinks(spaceId);
+    setShowAddLink(false);
+    setEditingSpaceId(null);
+    setIconPickerFor(null);
+    setUploadError(null);
+  }
+
   const loadWorkspace = useCallback(async () => {
-    const res = await fetch("/api/jobs/" + jobId + "/spaces");
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/jobs/" + jobId + "/spaces");
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Could not load folders. Please refresh and try again.");
+      }
       const data = await res.json();
       if (data.spaces.length === 0 && isAdmin) {
         const initRes = await fetch("/api/jobs/" + jobId + "/spaces", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ initDefaults: true, userId: user?.id }),
+          body: JSON.stringify({ initDefaults: true }),
         });
-        if (initRes.ok) {
-          const initData = await initRes.json();
-          setSpaces((initData.spaces || []).map((s: any) => ({ ...s, space_documents: [] })));
-        }
-      } else {
-        setSpaces(data.spaces);
-      }
+        if (!initRes.ok) throw new Error("Could not load default folders. Please try again.");
+        const initData = await initRes.json();
+        setSpaces((initData.spaces || []).map((s: any) => ({ ...s, space_documents: [] })));
+      } else setSpaces(data.spaces);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Could not load folders. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-  }, [jobId, user?.id, isAdmin]);
+  }, [jobId, isAdmin]);
 
   const loadLinks = useCallback(async (spaceId: string) => {
     const res = await fetch("/api/jobs/" + jobId + "/spaces/" + spaceId + "/links");
@@ -171,29 +196,45 @@ export default function WorkspacePage() {
     loadComments();
   }, [loadWorkspace, loadComments]);
 
+  async function saveFolder(method: "POST" | "PATCH", details: Record<string, unknown>) {
+    setSavingSpace(true);
+    setUploadError(null);
+    try {
+      const res = await fetch("/api/jobs/" + jobId + "/spaces", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(details),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Could not save folder. Please try again.");
+      }
+      const { space } = await res.json();
+      setSpaces((prev) => method === "POST"
+        ? [...prev, { ...space, space_documents: [] }]
+        : prev.map((s) => s.id === space.id ? { ...s, ...space } : s));
+      return true;
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Could not save folder. Please try again.");
+      return false;
+    } finally {
+      setSavingSpace(false);
+    }
+  }
+
   async function handleAddSpace() {
-    if (!newSpaceName.trim()) return;
-    await fetch("/api/jobs/" + jobId + "/spaces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newSpaceName, description: newSpaceDesc, icon: newSpaceIcon, userId: user?.id }),
-    });
+    if (!newSpaceName.trim() || savingSpace) return;
+    if (!await saveFolder("POST", { name: newSpaceName.trim(), description: newSpaceDesc.trim(), icon: newSpaceIcon })) return;
     setNewSpaceName("");
     setNewSpaceDesc("");
     setNewSpaceIcon("folder");
     setShowNewSpace(false);
-    loadWorkspace();
   }
 
   async function handleChangeIcon(spaceId: string, icon: string) {
-    // Optimistic update
-    setSpaces((prev) => prev.map((s) => s.id === spaceId ? { ...s, icon } : s));
+    if (savingSpace) return;
     setIconPickerFor(null);
-    await fetch("/api/jobs/" + jobId + "/spaces", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaceId, icon }),
-    });
+    await saveFolder("PATCH", { spaceId, icon });
   }
 
   function beginEditSpace(space: Space) {
@@ -204,28 +245,16 @@ export default function WorkspacePage() {
   }
 
   async function handleUpdateSpace() {
-    if (!editingSpaceId || !editSpaceName.trim()) return;
-    const res = await fetch("/api/jobs/" + jobId + "/spaces", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaceId: editingSpaceId, name: editSpaceName.trim(), description: editSpaceDesc.trim() || null }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "Update failed" }));
-      setUploadError(err.error || "Update failed");
-      return;
-    }
-
+    if (!editingSpaceId || !editSpaceName.trim() || savingSpace) return;
+    if (!await saveFolder("PATCH", { spaceId: editingSpaceId, name: editSpaceName.trim(), description: editSpaceDesc.trim() || null })) return;
     setEditingSpaceId(null);
     setEditSpaceName("");
     setEditSpaceDesc("");
-    loadWorkspace();
   }
 
   async function handleDeleteSpace(space: Space) {
     const docCount = space.space_documents?.length || 0;
-    const message = "Delete space \"" + space.name + "\"?" +
+    const message = "Delete folder \"" + space.name + "\"?" +
       (docCount > 0 ? " This will permanently delete " + docCount + " file" + (docCount === 1 ? "" : "s") + " in this space." : "") +
       " This cannot be undone.";
 
@@ -343,39 +372,35 @@ export default function WorkspacePage() {
   const NewIconComp = ICON_MAP[newSpaceIcon] || Folder;
 
   return (
-    <div>
+    <div ref={workspaceRef}>
       <JobTabs jobId={jobId} />
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-cs-text-primary">Shared workspace</h1>
-            <p className="text-sm text-cs-text-muted">A shared home for your property documents and team updates</p>
-          </div>
-          <div className="flex gap-2">
-            <a
-              href={`/api/jobs/${jobId}/workspace/export`}
-              download
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-card border border-cs-border text-cs-text-secondary hover:text-cs-text-primary hover:border-cs-accent-brand/50 transition"
-            >
-              <Download size={13} /> Download all docs
-            </a>
-            {isAdmin && <button
-              onClick={() => setShowNewSpace(!showNewSpace)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cs-accent-brand/10 text-cs-accent-brand hover:bg-cs-accent-brand/20"
-            >
-              <Plus size={13} /> Add folder
+      <div className="space-y-7">
+        {/* File navigation and actions */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            {active && <button className="inline-flex min-h-11 items-center gap-2 text-sm text-cs-accent-brand mb-2" onClick={() => { setActiveSpace(null); setShowAddLink(false); }}>
+              <ArrowLeft size={16} /> All folders
             </button>}
+            <h1 ref={filesHeadingRef} tabIndex={-1} className="cs-page-heading break-words scroll-mt-6">{active ? active.name : "Files"}</h1>
+            <p className="text-sm text-cs-text-secondary mt-2">{active ? active.description || "Upload and manage the files in this folder." : "Open a folder to upload documents, or create one for your team."}</p>
           </div>
+          {!active && <div className="grid grid-cols-2 gap-2 sm:flex shrink-0">
+            <a href={`/api/jobs/${jobId}/workspace/export`} download className="cs-btn-secondary">
+              <Download size={16} /> Download files
+            </a>
+            <button disabled={savingSpace} onClick={() => setShowNewSpace(!showNewSpace)} className="cs-btn-primary">
+              <Plus size={16} /> Add folder
+            </button>
+          </div>}
         </div>
 
-        <SubmissionBar jobId={jobId} revision={spaces.reduce((total,s)=>total+(s.space_documents?.length||0),0)}/>
+        {!active && <SubmissionBar jobId={jobId} revision={spaces.reduce((total,s)=>total+(s.space_documents?.length||0),0)}/>}
 
         {/* New space form */}
-        {showNewSpace && (
+        {showNewSpace && !active && (
           <div className="cs-card p-4 space-y-3">
-            <p className="text-xs font-medium text-cs-text-primary">New Space</p>
+            <p className="text-xs font-medium text-cs-text-primary">New folder</p>
             <div className="flex gap-3 items-start">
               {/* Icon selector */}
               <div className="relative flex-shrink-0">
@@ -398,13 +423,17 @@ export default function WorkspacePage() {
               {/* Name + desc */}
               <div className="flex-1 space-y-2">
                 <input
+                  maxLength={120}
+                  aria-label="Folder name"
                   value={newSpaceName}
                   onChange={(e) => setNewSpaceName(e.target.value)}
-                  placeholder="Space name (e.g., Spa & Wellness)"
+                  placeholder="Folder name (e.g., Spa & Wellness)"
                   className="cs-input"
                   autoFocus
                 />
                 <input
+                  maxLength={2000}
+                  aria-label="Folder description"
                   value={newSpaceDesc}
                   onChange={(e) => setNewSpaceDesc(e.target.value)}
                   placeholder="Description (optional)"
@@ -413,102 +442,60 @@ export default function WorkspacePage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={handleAddSpace} className="cs-btn-primary text-xs px-3 py-1.5">Create space</button>
-              <button onClick={() => { setShowNewSpace(false); setNewSpaceIcon("folder"); }} className="text-xs text-cs-text-muted">Cancel</button>
+              <button disabled={savingSpace || !newSpaceName.trim()} onClick={handleAddSpace} className="cs-btn-primary text-xs px-3 py-1.5">{savingSpace ? "Creating..." : "Create folder"}</button>
+              <button disabled={savingSpace} onClick={() => { setShowNewSpace(false); setNewSpaceIcon("folder"); }} className="text-xs text-cs-text-muted">Cancel</button>
             </div>
           </div>
         )}
 
         {/* Upload error */}
         {uploadError && (
-          <div className="bg-cs-accent-red/10 border border-cs-accent-red/30 rounded-md p-3 flex items-center justify-between">
+          <div role="alert" className="bg-cs-accent-red/10 border border-cs-accent-red/30 rounded-md p-3 flex items-center justify-between">
             <p className="text-xs text-cs-accent-red">{uploadError}</p>
-            <button onClick={() => setUploadError(null)}><X size={14} className="text-cs-accent-red" /></button>
+            <button aria-label="Dismiss error" className="min-h-11 min-w-11 flex items-center justify-center" onClick={() => setUploadError(null)}><X size={14} className="text-cs-accent-red" /></button>
           </div>
         )}
 
-        {/* Spaces grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {/* A folder opens its own file view instead of appending below the grid. */}
+        {!active && spaces.length === 0 && <div className="cs-card p-8 text-center space-y-3">
+          <Folder size={28} className="mx-auto text-cs-accent-brand" />
+          <h2 className="font-semibold">Create your first folder</h2>
+          <p className="text-sm text-cs-text-secondary">Organize documents by department or topic, then upload your files.</p>
+          <button className="cs-btn-primary" onClick={() => setShowNewSpace(true)}><Plus size={16} />Add folder</button>
+        </div>}
+        {!active && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {spaces.map((space) => {
             const IconComp = ICON_MAP[space.icon] || Folder;
             const docCount = space.space_documents?.length || 0;
             const isPickerOpen = iconPickerFor === space.id;
-
             return (
               <div key={space.id} className="relative">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    const nextActive = activeSpace === space.id ? null : space.id;
-                    setActiveSpace(nextActive);
-                    if (nextActive) { loadLinks(nextActive); setShowAddLink(false); }
-                    setIconPickerFor(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      const nextActive = activeSpace === space.id ? null : space.id;
-                      setActiveSpace(nextActive);
-                      if (nextActive) { loadLinks(nextActive); setShowAddLink(false); }
-                      setIconPickerFor(null);
-                    }
-                  }}
-                  className={
-                    "relative w-full cs-card p-4 text-left transition hover:border-cs-accent-brand/50 cursor-pointer " +
-                    (activeSpace === space.id ? "border-cs-accent-brand" : "")
-                  }
-                >
-                  {isAdmin && <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); beginEditSpace(space); }}
-                      className="w-7 h-7 rounded-md bg-cs-bg/90 border border-cs-border text-cs-text-muted hover:text-cs-accent-brand hover:border-cs-accent-brand/50 flex items-center justify-center transition"
-                      title="Edit space"
-                      aria-label={`Edit ${space.name}`}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteSpace(space); }}
-                      disabled={deletingSpaceId === space.id}
-                      className="w-7 h-7 rounded-md bg-cs-bg/90 border border-cs-border text-cs-text-muted hover:text-cs-accent-red hover:border-cs-accent-red/50 flex items-center justify-center transition disabled:opacity-50"
-                      title="Delete space"
-                      aria-label={`Delete ${space.name}`}
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                <div className="cs-card hover:border-cs-border-hover transition-colors">
+                  <div className="flex items-center justify-between px-5 pt-4">
+                    <span className="text-sm text-cs-text-secondary">{docCount} {docCount === 1 ? "file" : "files"}</span>
+                    <details className="relative group" onKeyDown={e => { if (e.key === "Escape") e.currentTarget.removeAttribute("open"); }}>
+                      <summary aria-label={`Actions for ${space.name}`} className="list-none min-h-11 min-w-11 flex items-center justify-center rounded-lg cursor-pointer hover:bg-cs-border/40 [&::-webkit-details-marker]:hidden">
+                        <MoreHorizontal size={20} />
+                      </summary>
+                      <div className="absolute right-0 top-12 z-20 w-48 p-2 rounded-xl border border-cs-border bg-cs-card shadow-xl">
+                        <button disabled={savingSpace} className="flex items-center gap-2 min-h-11 w-full text-left px-3 rounded-md hover:bg-cs-border/40 text-sm" onClick={e => { beginEditSpace(space); e.currentTarget.closest("details")?.removeAttribute("open"); }}>
+                          <Pencil size={16} />Edit folder
+                        </button>
+                        <button disabled={savingSpace} className="flex items-center gap-2 min-h-11 w-full text-left px-3 rounded-md hover:bg-cs-border/40 text-sm" onClick={e => { setIconPickerFor(space.id); e.currentTarget.closest("details")?.removeAttribute("open"); }}>
+                          <Folder size={16} />Change icon
+                        </button>
+                        {isAdmin && <button disabled={deletingSpaceId === space.id} className="flex items-center gap-2 min-h-11 w-full text-left px-3 rounded-md hover:bg-cs-accent-red/10 text-cs-accent-red text-sm" onClick={e => { e.currentTarget.closest("details")?.removeAttribute("open"); handleDeleteSpace(space); }}>
+                          <Trash2 size={16} />Delete folder
+                        </button>}
+                      </div>
+                    </details>
                   </div>
-                  }<div className="flex items-start justify-between gap-12 mb-2">
-                    {/* Icon — click to change */}
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if(isAdmin)setIconPickerFor(isPickerOpen ? null : space.id);
-                      }}
-                      className="w-8 h-8 rounded-md bg-cs-accent-brand/10 flex items-center justify-center cursor-pointer hover:bg-cs-accent-brand/25 hover:ring-1 hover:ring-cs-accent-brand/40 transition group"
-                      title={isAdmin?"Click to change icon":space.name}
-                    >
-                      <IconComp size={16} className="text-cs-accent-brand" />
-                    </div>
-                    <div className="flex gap-1 pr-16">
-                      {true && (
-                        <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded">
-                          {docCount} file{docCount !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                      {(spaceLinks[space.id] || []).length > 0 && (
-                        <span className="text-[10px] text-cs-text-muted bg-cs-bg px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                          <Globe size={9} />{(spaceLinks[space.id] || []).length}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <h3 className="text-sm font-medium text-cs-text-primary">{space.name}</h3>
-                  {space.description && (
-                    <p className="text-[11px] text-cs-text-muted mt-0.5 line-clamp-2">{space.description}</p>
-                  )}
+                  <button className="block w-full p-5 pt-2 sm:p-6 sm:pt-2 text-left rounded-b-xl group" aria-label={`Open ${space.name} folder`} onClick={() => openFolder(space.id)}>
+                    <IconComp size={24} className="text-cs-text-secondary group-hover:text-cs-accent-brand transition-colors mb-4" />
+                    <h2 className="text-lg font-semibold break-words">{space.name}</h2>
+                    {space.description && <p className="text-sm text-cs-text-secondary mt-2 line-clamp-2">{space.description}</p>}
+                    <span className="inline-flex items-center gap-2 text-sm text-cs-text-primary mt-5 group-hover:text-cs-accent-brand transition-colors">Open folder<ArrowRight size={16} /></span>
+                  </button>
                 </div>
 
                 {/* Icon picker for this card */}
@@ -524,54 +511,53 @@ export default function WorkspacePage() {
 
                 {editingSpaceId === space.id && (
                   <div className="mt-2 cs-card p-3 space-y-2 border-cs-accent-brand/40">
-                    <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Edit space</p>
+                    <p className="text-[10px] text-cs-text-muted uppercase tracking-wide">Edit folder</p>
                     <input
+                      autoFocus
+                      maxLength={120}
+                      aria-label="Folder name"
                       value={editSpaceName}
                       onChange={(e) => setEditSpaceName(e.target.value)}
                       className="cs-input text-xs"
-                      placeholder="Space name"
+                      placeholder="Folder name"
                     />
                     <input
+                      maxLength={2000}
+                      aria-label="Folder description"
                       value={editSpaceDesc}
                       onChange={(e) => setEditSpaceDesc(e.target.value)}
                       className="cs-input text-xs"
                       placeholder="Description"
                     />
                     <div className="flex gap-2">
-                      <button onClick={handleUpdateSpace} className="cs-btn-primary text-xs px-3 py-1.5">Save</button>
-                      <button onClick={() => setEditingSpaceId(null)} className="text-xs text-cs-text-muted hover:text-cs-text-secondary">Cancel</button>
+                      <button disabled={savingSpace || !editSpaceName.trim()} onClick={handleUpdateSpace} className="cs-btn-primary text-xs px-3 py-1.5">{savingSpace ? "Saving..." : "Save"}</button>
+                      <button disabled={savingSpace} onClick={() => setEditingSpaceId(null)} className="text-xs text-cs-text-muted hover:text-cs-text-secondary">Cancel</button>
                     </div>
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
+        </div>}
 
         {/* Active space detail */}
         {active && (
-          <div className="cs-card p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-cs-text-primary">{active.name}</h3>
-              <button onClick={() => setActiveSpace(null)} className="text-cs-text-muted hover:text-cs-text-secondary">
-                <X size={14} />
-              </button>
-            </div>
-
+          <div className="cs-card p-5 sm:p-7 space-y-6">
             {/* Upload area */}
-            <label className="block border-2 border-dashed border-cs-border rounded-lg p-6 text-center cursor-pointer hover:border-cs-accent-brand/50 transition">
+            <label className="block border-2 border-dashed border-cs-border rounded-xl p-6 sm:p-8 text-center cursor-pointer hover:border-cs-accent-brand focus-within:ring-2 focus-within:ring-cs-accent-brand transition">
               <input
                 type="file"
                 multiple
-                className="hidden"
+                className="sr-only"
+                aria-label={`Upload files to ${active.name}`}
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.avi,.webm,.mkv,.m4v"
                 onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleFileUpload(active.id, e.target.files); }}
               />
               <Upload size={20} className="mx-auto text-cs-text-muted mb-2" />
-              <p className="text-xs text-cs-text-secondary">
-                {uploading ? "Uploading..." : "Choose files to upload"}
+              <p className="text-base font-medium text-cs-text-primary">
+                {uploading ? "Uploading..." : "Upload files"}
               </p>
-              <p className="text-[10px] text-cs-text-muted mt-1">
+              <p className="text-sm text-cs-text-secondary mt-2">
                 25 MB per file. Searchable PDF, DOCX, CSV, and text support automatic processing. Other files are stored for manual review.
               </p>
             </label>
@@ -580,7 +566,7 @@ export default function WorkspacePage() {
             {active.space_documents && active.space_documents.length > 0 ? (
               <div className="space-y-2">
                 {active.space_documents.map((doc) => (
-                  <div key={doc.id} className="flex items-center gap-3 py-2 px-3 bg-cs-bg rounded-md group">
+                  <div key={doc.id} className="flex flex-wrap sm:flex-nowrap items-center gap-3 py-3 px-3 bg-cs-bg rounded-md group">
                     {doc.file_type.startsWith("video/") ? <Video size={14} className="text-cs-text-muted flex-shrink-0" /> : <FileText size={14} className="text-cs-text-muted flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-cs-text-primary truncate">{doc.name}</p>
@@ -588,10 +574,11 @@ export default function WorkspacePage() {
                         {doc.file_type} · {formatSize(doc.file_size || 0)} · {new Date(doc.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <span className="text-[10px] text-cs-text-muted shrink-0">{doc.processing_status === "complete" ? "Text ready" : doc.processing_status === "failed" ? "Needs review" : "Uploaded"}</span>
+                    <span className="text-xs text-cs-text-secondary shrink-0">{doc.processing_status === "complete" ? "Text ready" : doc.processing_status === "failed" ? "Needs review" : "Uploaded"}</span>
                     <button
                       onClick={() => handleDeleteDocument(active.id, doc.id)}
-                      className="opacity-70 hover:opacity-100 text-cs-text-muted hover:text-cs-accent-red p-1 rounded transition flex-shrink-0"
+                      className="opacity-70 hover:opacity-100 text-cs-text-muted hover:text-cs-accent-red min-h-11 min-w-11 flex items-center justify-center p-2 rounded transition flex-shrink-0"
+                      aria-label={`Delete ${doc.name}`}
                       title="Delete file"
                     >
                       <Trash2 size={12} />
@@ -627,13 +614,14 @@ export default function WorkspacePage() {
                         <p className="text-[10px] text-cs-text-muted truncate">{link.url}</p>
                       </div>
                       <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition">
-                        <a href={link.url} target="_blank" rel="noreferrer"
+                        <a href={link.url} target="_blank" rel="noreferrer" aria-label={`Open ${link.title}`}
                           className="text-cs-text-muted hover:text-cs-accent-brand p-1 rounded">
                           <ExternalLink size={12} />
                         </a>
                         <button
+                          aria-label={`Delete ${link.title} link`}
                           onClick={() => handleDeleteLink(active.id, link.id)}
-                          className="text-cs-text-muted hover:text-cs-accent-red p-1 rounded"
+                          className="text-cs-text-muted hover:text-cs-accent-red min-h-11 min-w-11 flex items-center justify-center p-2 rounded"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -694,6 +682,7 @@ export default function WorkspacePage() {
             </div>
           </div>
         )}
+        {active && <SubmissionBar jobId={jobId} revision={spaces.reduce((total,s)=>total+(s.space_documents?.length||0),0)}/>}
       </div>
 
       {/* Comments */}

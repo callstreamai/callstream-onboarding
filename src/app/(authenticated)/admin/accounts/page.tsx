@@ -58,7 +58,7 @@ export default function AdminAccountsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Building2 size={20} className="text-cs-accent-blue" />
-          <h1 className="text-2xl font-semibold">Accounts</h1>
+          <h1 className="cs-page-heading">Accounts</h1>
         </div>
         <button onClick={() => setShowCreate(!showCreate)} className="cs-btn-primary text-sm">
           <Plus size={16} />
