@@ -43,7 +43,7 @@ export default function PropertyList({ dashboard = false }: { dashboard?: boolea
       <header className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-5">
         <div>
           <h1 className="cs-page-heading">{dashboard ? "Launch overview" : "Properties"}</h1>
-          <p className="text-sm sm:text-base text-cs-text-secondary mt-3 max-w-xl">
+          <p className="text-sm leading-[21px] text-cs-text-secondary mt-2 max-w-xl">
             {dashboard ? "Your properties, their progress, and what comes next." : "Documents, knowledge, and launch progress. One workspace for each property."}
           </p>
         </div>

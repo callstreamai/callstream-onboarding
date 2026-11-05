@@ -8,6 +8,18 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Match the client portal's 15px typography scale without shrinking
+      // rem-based layout spacing, icons, or 44px touch targets.
+      fontSize: {
+        xs: ["11.25px", { lineHeight: "16.875px" }],
+        sm: ["13.125px", { lineHeight: "19.6875px" }],
+        base: ["15px", { lineHeight: "22.5px" }],
+        lg: ["16.875px", { lineHeight: "26.25px" }],
+        xl: ["18.75px", { lineHeight: "26.25px" }],
+        "2xl": ["22.5px", { lineHeight: "30px" }],
+        "3xl": ["28.125px", { lineHeight: "33.75px" }],
+        "4xl": ["33.75px", { lineHeight: "37.5px" }],
+      },
       colors: {
         cs: {
           bg: "#000000",
