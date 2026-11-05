@@ -12,7 +12,8 @@ export default function SubmissionBar({
   const [error, setError] = useState("");
   async function load() {
     const r = await fetch(`/api/jobs/${jobId}/submission`);
-    if (r.ok) setData(await r.json());
+    if (!r.ok) throw new Error("Could not load submission status.");
+    setData(await r.json());
   }
   useEffect(() => {
     load().catch(() => setError("Could not load submission status."));
@@ -35,10 +36,10 @@ export default function SubmissionBar({
   }
   return (
     <section className="cs-card p-5 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="font-medium">
-            {data?.propertyName || "Your property"} · Shared workspace
+            {data?.propertyName || "Your property"} · File review
           </p>
           <p className="text-sm text-cs-text-secondary mt-2">
             1. Add files to folders &nbsp; 2. Submit for review &nbsp; 3. Our
@@ -46,7 +47,7 @@ export default function SubmissionBar({
           </p>
         </div>
         <button
-          className="cs-btn-primary"
+          className="cs-btn-primary w-full sm:w-auto shrink-0"
           disabled={
             busy ||
             !data?.fileCount ||
@@ -61,7 +62,7 @@ export default function SubmissionBar({
               : "Submit files for review"}
         </button>
       </div>
-      <p role="status" className="text-xs text-cs-text-muted">
+      <p role="status" className="text-sm text-cs-text-secondary">
         {data?.submittedAt
           ? `Submitted ${new Date(data.submittedAt).toLocaleString()}.${data.changedSinceSubmission ? " Sources have changed. Submit again when your files are ready." : " Our team will review your submission."}`
           : "Upload all available property documents, then submit them together. You can add more files later."}

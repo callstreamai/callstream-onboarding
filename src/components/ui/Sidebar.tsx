@@ -102,11 +102,11 @@ export function Sidebar({
           <div key={section.label}>
             <p className="cs-label text-[10px] px-3 mb-1.5">{section.label}</p>
             {section.items.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/" && pathname.startsWith(item.href)) ||
-                (item.href === "/properties" &&
-                  pathname.startsWith("/onboarding/"));
+              const isActive = item.href === "/onboarding"
+                ? pathname === "/onboarding"
+                : pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href + "/")) ||
+                  (item.href === "/properties" && pathname.startsWith("/onboarding/"));
               const Icon = item.icon;
               return (
                 <Link

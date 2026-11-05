@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Milestone, MilestoneStatus } from "@/types/project";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -114,6 +115,13 @@ export default function MilestoneTimeline({ milestones, jobId, isAdmin, onUpdate
     }
   }
 
+  const nextMilestone = rootMilestones.find(m => m.status !== "complete" && m.status !== "skipped");
+  const nextAction = nextMilestone ? ({
+    "Website review": { label: "Review website sources", section: "knowledge" },
+    "Files submitted": { label: "Upload and submit files", section: "workspace" },
+    "Knowledge review": { label: "Review knowledge", section: "knowledge" },
+    "Voice & testing": { label: "Explore property voices", section: "voice-preview" },
+  } as Record<string, { label: string; section: string }>)[nextMilestone.name] : null;
   const total = milestones.length;
   const completed = milestones.filter((m) => m.status === "complete").length;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -169,7 +177,7 @@ export default function MilestoneTimeline({ milestones, jobId, isAdmin, onUpdate
                   {m.name}
                 </h3>
                 {m.description && (
-                  <p className="text-[11px] text-cs-text-muted mt-0.5">{m.description}</p>
+                  <p className="text-sm text-cs-text-secondary mt-1">{m.description}</p>
                 )}
                 <div className="flex items-center gap-3 mt-1.5 text-[10px] text-cs-text-muted">
                   {m.target_date && (
@@ -186,8 +194,8 @@ export default function MilestoneTimeline({ milestones, jobId, isAdmin, onUpdate
               {/* Admin menu */}
               {isAdmin && (
                 <div className="relative flex-shrink-0">
-                  <button onClick={() => setMenuId(isMenuOpen ? null : m.id)}
-                    className="text-cs-text-muted hover:text-cs-text-secondary p-1">
+                  <button aria-label={`Actions for ${m.name}`} aria-expanded={isMenuOpen} onClick={() => setMenuId(isMenuOpen ? null : m.id)}
+                    className="text-cs-text-secondary hover:text-white min-h-11 min-w-11 flex items-center justify-center p-2">
                     <ChevronDown size={13} />
                   </button>
 
@@ -241,6 +249,10 @@ export default function MilestoneTimeline({ milestones, jobId, isAdmin, onUpdate
 
   return (
     <div className="space-y-4">
+      {nextMilestone && <section className="cs-card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div><p className="cs-label text-cs-accent-brand mb-2">Next milestone</p><h2 className="font-semibold">{nextMilestone.name}</h2><p className="text-sm text-cs-text-secondary mt-1">{nextMilestone.description}</p></div>
+        {nextAction && <Link className="cs-btn-primary shrink-0" href={`/onboarding/${jobId}/${nextAction.section}`}>{nextAction.label} →</Link>}
+      </section>}
       {/* Progress bar */}
       <div className="cs-card p-4">
         <div className="flex items-center justify-between mb-2">

@@ -73,8 +73,10 @@ export default function NotificationBell({ userId }: Props) {
   return (
     <div className="relative" ref={ref}>
       <button
+        aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="relative p-2 text-cs-text-muted hover:text-cs-text-secondary"
+        className="relative min-h-11 min-w-11 flex items-center justify-center p-2 text-cs-text-muted hover:text-cs-text-secondary"
       >
         <Bell size={18} />
         {unreadCount > 0 && (

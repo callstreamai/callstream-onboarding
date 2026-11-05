@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { propertyNextStep, websiteHost } from "@/lib/launch-navigation";
 import { Building2, ArrowRight, Plus, Search } from "lucide-react";
 export default function PropertyList({
   dashboard = false,
@@ -110,11 +111,11 @@ export default function PropertyList({
         <div className="cs-card p-8">No properties found.</div>
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
-          {visible.map((p) => (
-            <Link
+          {visible.map((p) => {
+            const next = propertyNextStep(p);
+            return <div
               key={p.id}
-              href={"/properties/" + p.property_key}
-              className="cs-card-hover p-6 block"
+              className="cs-card p-5 sm:p-6 flex flex-col"
             >
               <div className="flex items-start gap-3">
                 <Building2
@@ -122,32 +123,36 @@ export default function PropertyList({
                   size={22}
                 />
                 <div className="flex-1 min-w-0">
-                  <h2 className="font-semibold text-lg">{p.name}</h2>
-                  {admin && (
+                  <h2 className="font-semibold text-lg"><Link className="hover:text-cs-accent-brand" href={"/properties/" + p.property_key}>{p.name}</Link></h2>
+                  {admin && p.account_name !== p.name && (
                     <p className="text-xs text-cs-text-muted mt-1">
                       {p.account_name || "Client account not linked"}
                     </p>
                   )}
                 </div>
-                <ArrowRight size={18} />
+                <Link aria-label={`Overview for ${p.name}`} href={"/properties/" + p.property_key} className="min-h-11 min-w-11 flex items-center justify-center rounded-md hover:bg-cs-border/30"><ArrowRight size={18} /></Link>
               </div>
-              <p className="text-xs text-cs-text-muted mt-4 break-all">
-                {p.website_url}
+              <p className="text-sm text-cs-text-secondary mt-3 break-words" title={p.website_url}>
+                {websiteHost(p.website_url)}
               </p>
               <div className="flex flex-wrap gap-3 mt-4 text-sm">
                 <span className="cs-badge bg-cs-accent-brand/10 text-cs-accent-brand">
                   {p.status}
                 </span>
-                <span>{p.document_count} files</span>
-                {admin && <span>{p.version_count} knowledge versions</span>}
+                <span>{p.document_count} {p.document_count === 1 ? "file" : "files"}</span>
+                {admin && <span>{p.version_count} knowledge {p.version_count === 1 ? "version" : "versions"}</span>}
               </div>
               {p.warning && (
                 <p className="text-xs text-cs-accent-orange mt-3">
                   {p.warning}
                 </p>
               )}
-            </Link>
-          ))}
+              <div className="mt-auto pt-5">
+                <p className="cs-label mb-1">Next step</p>
+                <Link className="inline-flex min-h-11 items-center gap-2 text-sm text-cs-accent-brand font-medium" href={next.href}>{next.label}<ArrowRight size={16} /></Link>
+              </div>
+            </div>;
+          })}
         </div>
       )}
     </div>

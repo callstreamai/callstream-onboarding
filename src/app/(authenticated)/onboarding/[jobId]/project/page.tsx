@@ -123,7 +123,7 @@ export default function ProjectPage() {
       }
 
       if (jobData) {
-        setJobName(jobData.property_name || jobData.property_url || jobData.id?.slice(0, 8) || "Project");
+        setJobName(jobData.job?.property_name || jobData.job?.property_url || "");
       }
 
       setLoading(false);
@@ -155,8 +155,8 @@ export default function ProjectPage() {
 
         {/* Page header */}
         <div>
-          <h1 className="text-lg font-semibold text-cs-text-primary">Project Timeline</h1>
-          <p className="text-sm text-cs-text-muted mt-0.5">{jobName}</p>
+          <h1 className="text-lg font-semibold text-cs-text-primary">Launch progress</h1>
+          <p className="text-sm text-cs-text-secondary mt-1">Track milestones, tasks, and team updates.</p>
         </div>
 
         {/* Tab bar */}

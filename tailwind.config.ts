@@ -16,9 +16,9 @@ const config: Config = {
           border: "#29232d",
           "border-hover": "#514056",
           "text-primary": "#ffffff",
-          "text-secondary": "#a0a0a0",
-          "text-muted": "#96909c",
-          "text-label": "#888888",
+          "text-secondary": "#b8b2bd",
+          "text-muted": "#a9a2b0",
+          "text-label": "#a9a2b0",
           accent: {
             brand: "#e879c6",
             green: "#4ade80",

@@ -71,7 +71,7 @@
 
   .cs-btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
-           bg-cs-accent-brand text-black text-sm font-medium rounded-md
+           min-h-11 bg-cs-accent-brand text-black text-sm font-medium rounded-md
            hover:bg-pink-300 transition-colors disabled:opacity-40
            disabled:cursor-not-allowed;
   }
@@ -79,7 +79,7 @@
   .cs-btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
            bg-cs-card border border-cs-border text-sm text-cs-text-primary
-           rounded-md hover:border-cs-border-hover transition-colors
+           rounded-md min-h-11 hover:border-cs-border-hover transition-colors
            disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
