@@ -6,7 +6,7 @@ const ts = require('typescript');
 function load(file, imports = {}) {
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: name => { if (name in imports) return imports[name]; throw new Error(`Unexpected import: ${name}`); }, fetch, Request, Response, AbortSignal, Uint8Array, Set, Error, console, process });
+  vm.runInNewContext(code, { exports, require: name => { if (name in imports) return imports[name]; throw new Error(`Unexpected import: ${name}`); }, fetch, Request, Response, AbortSignal, Uint8Array, Set, Error, console, process, crypto: require("node:crypto").webcrypto });
   return exports;
 }
 const lib = load('src/lib/voice-preview.ts');
@@ -65,4 +65,26 @@ test('provider timeouts return an actionable 504 and no internal details', async
     const res = await route(true, async () => { const e = new Error('internal'); e.name = 'TimeoutError'; throw e; }).POST(new Request('https://example.com', { method: 'POST', body: JSON.stringify(input) }));
     assert.equal(res.status, 504); assert.match((await res.json()).error, /too long/);
   } finally { if (prior === undefined) delete process.env.BLAND_API_KEY; else process.env.BLAND_API_KEY = prior; }
+});
+
+test('provider phase timings report status and audio completion without exposing the script', async () => {
+  const wav = Buffer.alloc(60); wav.write('RIFF'); wav.write('WAVE', 8);
+  const phases = [];
+  await lib.generatePreview('fake', input, async () => new Response(wav), (...args) => phases.push(args));
+  assert.deepEqual(phases.map(p => p[0]), ['provider_headers', 'provider_body']);
+  assert.ok(phases.every(p => p[1] >= 0 && p[2] === 200));
+  assert.doesNotMatch(JSON.stringify(phases), /Hello|fake/);
+});
+
+test('browser diagnostics require authentication and accept only bounded metadata', async () => {
+  const diagnostic = authenticated => load('src/app/api/voice/preview-diagnostic/route.ts', {
+    '@/lib/supabase/server-client': { createServerSupabaseClient: () => ({ auth: { getUser: async () => ({ data: { user: authenticated ? { id: 'test' } : null }, error: null }) } }) },
+    '@/lib/voice-preview': lib,
+  });
+  const payload = { previewId: id, attempt: 2, voice: id, textLength: 263, headersMs: 2100, totalMs: 75000, status: 200, outcome: 'timeout' };
+  const req = body => new Request('https://example.com', { method: 'POST', body: JSON.stringify(body) });
+  assert.equal((await diagnostic(false).POST(req(payload))).status, 401);
+  assert.equal((await diagnostic(true).POST(req({ ...payload, totalMs: -1 }))).status, 400);
+  assert.equal((await diagnostic(true).POST(req({ ...payload, previewId: 'bad' }))).status, 400);
+  assert.equal((await diagnostic(true).POST(req(payload))).status, 204);
 });

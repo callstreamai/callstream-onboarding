@@ -78,28 +78,56 @@ export default function VoiceStudio() {
       return;
     }
     const id = ++revision.current;
-    const controller = new AbortController();
-    request.current = controller;
-    const timer = setTimeout(() => controller.abort(), 35000);
+    const previewId = crypto.randomUUID();
     setState("loading"); setError(""); setPlayHint("");
-    try {
-      const res = await fetch("/api/voice/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, voice: selected }), signal: controller.signal });
-      if (!res.ok) { const data = await res.json(); throw new Error(data.error || "We could not generate this preview."); }
-      if (!res.headers.get("content-type")?.startsWith("audio/")) throw new Error("The voice service returned an unreadable preview. Please try again.");
-      const blob = await res.blob();
+    for (let attempt = 1; attempt <= 2; attempt++) {
       if (id !== revision.current) return;
-      if (!blob.size) throw new Error("The voice service returned an empty preview. Please try again.");
-      clipUrl.current = URL.createObjectURL(blob);
-      setClip(clipUrl.current); setState("ready");
-      // Keep playback explicit: browsers can block autoplay after a network request.
-      setPlayHint("Your preview is ready. Press Play below to listen.");
-    } catch (e) {
-      if (id !== revision.current) return;
-      setState("idle");
-      setError(controller.signal.aborted ? "The preview took too long. Try again or choose another voice." : e instanceof Error ? e.message : "Unable to generate a preview. Please try again.");
-    } finally {
-      clearTimeout(timer);
-      if (id === revision.current) request.current = null;
+      const controller = new AbortController();
+      request.current = controller;
+      const started = performance.now();
+      let headersMs: number | undefined;
+      let status: number | undefined;
+      let timedOut = false;
+      let outcome = "error";
+      let retry = false;
+      const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 75000);
+      const slowTimer = setTimeout(() => { if (id === revision.current) setPlayHint("Still generating your preview. You can cancel at any time."); }, 10000);
+      try {
+        const res = await fetch("/api/voice/speak", { method: "POST", headers: { "Content-Type": "application/json", "X-Preview-Id": previewId, "X-Preview-Attempt": String(attempt) }, body: JSON.stringify({ text, voice: selected }), signal: controller.signal });
+        headersMs = Math.round(performance.now() - started);
+        status = res.status;
+        if (!res.ok) {
+          retry = [429, 502, 504].includes(res.status);
+          const data = await res.json();
+          throw new Error(data.error || "We could not generate this preview.");
+        }
+        if (!res.headers.get("content-type")?.startsWith("audio/")) throw new Error("The voice service returned an unreadable preview. Please try again.");
+        const blob = await res.blob();
+        if (id !== revision.current) { outcome = "cancelled"; return; }
+        if (!blob.size) throw new Error("The voice service returned an empty preview. Please try again.");
+        outcome = "success";
+        clipUrl.current = URL.createObjectURL(blob);
+        setClip(clipUrl.current); setState("ready");
+        setPlayHint("Your preview is ready. Press Play below to listen.");
+        return;
+      } catch (e) {
+        if (id !== revision.current) { outcome = "cancelled"; return; }
+        outcome = timedOut ? "timeout" : "error";
+        retry ||= timedOut || (e instanceof TypeError && (status === undefined || status === 200));
+        if (retry && attempt === 1) {
+          setPlayHint("The preview is taking longer than expected. Trying once more…");
+        } else {
+          setState("idle");
+          setPlayHint("");
+          setError(`${timedOut ? "The preview took too long. Try again or choose another voice." : e instanceof Error ? e.message : "Unable to generate a preview. Please try again."} Reference: ${previewId}`);
+          return;
+        }
+      } finally {
+        clearTimeout(timer); clearTimeout(slowTimer);
+        if (id === revision.current) request.current = null;
+        // This report contains no script, audio, or credentials. It is best-effort.
+        void fetch("/api/voice/preview-diagnostic", { method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true, body: JSON.stringify({ previewId, attempt, voice: selected, textLength: text.trim().length, headersMs, totalMs: Math.round(performance.now() - started), status, outcome }) }).catch(() => {});
+      }
     }
   }
 

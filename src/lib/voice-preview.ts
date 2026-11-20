@@ -42,7 +42,8 @@ export function providerError(status: number): PreviewError {
   return new PreviewError("The voice service is temporarily unavailable. Please try again.");
 }
 
-export async function generatePreview(apiKey: string, input: { text: string; voice: string }, requestFetch: typeof fetch = fetch): Promise<ArrayBuffer> {
+export async function generatePreview(apiKey: string, input: { text: string; voice: string }, requestFetch: typeof fetch = fetch, timing?: (phase: string, elapsedMs: number, status?: number) => void): Promise<ArrayBuffer> {
+  const started = Date.now();
   const res = await requestFetch("https://api.bland.ai/v2/tts", {
     method: "POST",
     headers: { Authorization: apiKey, "Content-Type": "application/json" },
@@ -50,8 +51,10 @@ export async function generatePreview(apiKey: string, input: { text: string; voi
     signal: AbortSignal.timeout(30000),
     cache: "no-store",
   });
+  timing?.("provider_headers", Date.now() - started, res.status);
   if (!res.ok) throw providerError(res.status);
   const audio = await res.arrayBuffer();
+  timing?.("provider_body", Date.now() - started, res.status);
   const bytes = new Uint8Array(audio);
   const signature = (start: number, end: number) => String.fromCharCode(...Array.from(bytes.slice(start, end)));
   if (bytes.length <= 44 || signature(0, 4) !== "RIFF" || signature(8, 12) !== "WAVE") {
